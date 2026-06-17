@@ -1,7 +1,6 @@
-(** Fixed-point price representation.
-
-    Prices are represented as an integer number of cents. For example, the
-    price $150.25 is stored as the integer 15025.
+(** Fixed-point price representation. Prices are represented as an integer
+    number of cents. For example, the price $150.25 is stored as the
+    integer 15025.
 
     A real exchange might use higher-precision fixed-point arithmetic (e.g.,
     9 decimal places) to support fractional-cent pricing. Our integer-cents
@@ -52,8 +51,7 @@ val ( * ) : t -> int -> t
     [is_more_aggressive side ~price ~than] returns [true] when [price] would
     execute before [than] in a price-priority order book.
 
-    Currently unimplemented — raises [Failure]. Filling this in is one of the
-    project's exercises. *)
+    assumes price and than are in int_cents form *)
 val is_more_aggressive : Side.t -> price:t -> than:t -> bool
 
 (** Would an order on the given side trade against a resting order at
@@ -61,8 +59,7 @@ val is_more_aggressive : Side.t -> price:t -> than:t -> bool
     ask price. A sell order is marketable if its price <= the resting bid
     price.
 
-    Currently unimplemented — raises [Failure]. Filling this in is one of the
-    project's exercises. *)
+    assumes price and resting price are in int_cents**)
 val is_marketable : Side.t -> price:t -> resting_price:t -> bool
 
 (** {2 Display} *)

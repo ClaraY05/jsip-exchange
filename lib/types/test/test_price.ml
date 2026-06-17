@@ -74,3 +74,86 @@ let%expect_test "negative to_string_dollar" =
   print_endline (Price.to_string_dollar (Price.of_int_cents (-150)));
   [%expect {| -$1.50 |}]
 ;;
+
+(* look for way to input price without relying on Price functions *)
+let%expect_test "is_more-aggressive: determines whether side is more \
+                 aggresive"
+  =
+  [%test_result: bool]
+    (Price.is_more_aggressive
+       Side.Buy
+       ~price:(Price.of_int_cents 0)
+       ~than:(Price.of_int_cents 0))
+    ~expect:false;
+  [%test_result: bool]
+    (Price.is_more_aggressive
+       Side.Buy
+       ~price:(Price.of_int_cents 50000)
+       ~than:(Price.of_int_cents 5000))
+    ~expect:true;
+  [%test_result: bool]
+    (Price.is_more_aggressive
+       Side.Buy
+       ~price:(Price.of_int_cents 100000)
+       ~than:(Price.of_int_cents 100000000))
+    ~expect:false;
+  [%test_result: bool]
+    (Price.is_more_aggressive
+       Side.Sell
+       ~price:(Price.of_int_cents 0)
+       ~than:(Price.of_int_cents 0))
+    ~expect:false;
+  [%test_result: bool]
+    (Price.is_more_aggressive
+       Side.Sell
+       ~price:(Price.of_int_cents 5000)
+       ~than:(Price.of_int_cents 500000))
+    ~expect:true;
+  [%test_result: bool]
+    (Price.is_more_aggressive
+       Side.Sell
+       ~price:(Price.of_int_cents 100000000)
+       ~than:(Price.of_int_cents 10000))
+    ~expect:false
+;;
+
+let%expect_test "is_marketable: determines whether the order is\n\
+                \   marketable"
+  =
+  [%test_result: bool]
+    (Price.is_marketable
+       Side.Buy
+       ~price:(Price.of_int_cents 0)
+       ~resting_price:(Price.of_int_cents 0))
+    ~expect:true;
+  [%test_result: bool]
+    (Price.is_marketable
+       Side.Buy
+       ~price:(Price.of_int_cents 5001)
+       ~resting_price:(Price.of_int_cents 5000))
+    ~expect:true;
+  [%test_result: bool]
+    (Price.is_marketable
+       Side.Buy
+       ~price:(Price.of_int_cents 5000)
+       ~resting_price:(Price.of_int_cents 5001))
+    ~expect:false;
+  [%test_result: bool]
+    (Price.is_marketable
+       Side.Sell
+       ~price:(Price.of_int_cents 0)
+       ~resting_price:(Price.of_int_cents 0))
+    ~expect:true;
+  [%test_result: bool]
+    (Price.is_marketable
+       Side.Sell
+       ~price:(Price.of_int_cents 5000)
+       ~resting_price:(Price.of_int_cents 5001))
+    ~expect:true;
+  [%test_result: bool]
+    (Price.is_marketable
+       Side.Sell
+       ~price:(Price.of_int_cents 5001)
+       ~resting_price:(Price.of_int_cents 5000))
+    ~expect:false
+;;
