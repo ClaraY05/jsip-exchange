@@ -71,6 +71,14 @@ let find_match t incoming =
   let incoming_side = Order.side incoming in
   let opposite_side = Side.flip incoming_side in
   let resting_orders = side_list t opposite_side in
+  let get_better_order order1 order2 =
+    if Price.is_more_aggressive
+         opposite_side
+         ~price:(Order.price order1)
+         ~than:(Order.price order2)
+    then order1
+    else order2
+  in
   let marketable_orders =
     List.filter resting_orders ~f:(fun outgoing_order ->
       Price.is_marketable
@@ -78,12 +86,10 @@ let find_match t incoming =
         ~price:(Order.price incoming)
         ~resting_price:(Order.price outgoing_order))
   in
-  let compare_orders order1 order 2
-  let sorted_marketable_orders = List.stable_sort marketable_orders ~f(fun order1 order2 -> )
-  in
-  match sorted_marketable_orders with
+  match marketable_orders with
   | [] -> None
-  | first_order :: _ -> Some first_order
+  | first_order :: other_orders ->
+    Some (List.fold_left other_orders ~init:first_order ~f:get_better_order)
 ;;
 
 let orders_on_side t side = side_list t side
@@ -120,10 +126,14 @@ let best_bid_offer t : Bbo.t =
 ;;
 
 let snapshot_side t (side : Side.t) =
-  let compare =
-    match side with
-    | Buy -> Comparable.reverse Level.compare
-    | Sell -> Level.compare
+  let compare (level1 : Level.t) (level2 : Level.t) =
+    let price = level1.price in
+    let than = level2.price in
+    if Price.is_more_aggressive side ~price ~than
+    then 1 (* higher precedence *)
+    else if Price.( = ) price than
+    then 0
+    else -1
   in
   orders_on_side t side |> List.map ~f:Level.of_order |> List.sort ~compare
 ;;
