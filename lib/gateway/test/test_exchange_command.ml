@@ -3,6 +3,12 @@ open Jsip_types
 open Jsip_order_book
 open Jsip_gateway
 
+(** Parsing tests with example clients and interactions
+
+    Parsing tests to confirm the functionality of exchange_command and its
+    parsing behavior. Completes a full end to end test between parsing and
+    formatting from event_formatter. Specifically regarding BUY/SELL
+    commands, no testing for book / subscribe. *)
 let print_parse line =
   match Exchange_command.parse line with
   | Error msg -> print_endline [%string "ERROR: %{Error.to_string_hum msg}"]

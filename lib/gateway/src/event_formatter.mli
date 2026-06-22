@@ -1,10 +1,9 @@
 (** Formats exchanges.
 
-    This module defines how order requests are represented as text and how
-    exchange events are formatted for display. On a production exchange, this
-    would be a binary protocol like FIX for performance and interoperability.
-    We use a simple human-readable text format for ease of debugging and
-    interactive use.
+    This module defines how exchange events are formatted for display. On a
+    production exchange, this would be a binary protocol like FIX for
+    performance and interoperability. We use a simple human-readable text
+    format for ease of debugging and interactive use.
 
     {2 Command format}
 

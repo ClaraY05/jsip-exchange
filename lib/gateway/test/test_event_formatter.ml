@@ -2,6 +2,10 @@ open! Core
 open Jsip_types
 open Jsip_gateway
 
+(** Event formating with example clients and interactions
+
+    Tests confirm the reliability of format_event, specifically regarding
+    BUY/SELL commands, no testing for book / subscribe. *)
 (* --- Event formatting --- *)
 
 let%expect_test "format_event: all event types" =

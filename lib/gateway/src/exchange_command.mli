@@ -1,8 +1,7 @@
 (** Exchange commands for centralizing command parsing
 
     Centralizing implementation of command-line interfaces, handling buy/sell
-    commands and book and subscribe commands, replacing the protocol.ml and
-    app/client/bin/main.ml modules *)
+    commands and book and subscribe commands *)
 
 open! Core
 open Jsip_types
@@ -21,5 +20,7 @@ type verb =
 
 (** [{Command}] *)
 
-(** takes in an input are parses it into a Verb.t *)
+(** Parse a text command into an order request. Returns [Error] with a
+    human-readable message if the input is malformed. Can set
+    default_participant for clients that already know their identity *)
 val parse : ?default_participant:Participant.t -> string -> t Or_error.t

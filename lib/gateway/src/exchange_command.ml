@@ -13,7 +13,10 @@ type verb =
   | Subscribe
 [@@deriving string ~case_insensitive ~capitalize:"SCREAMING_SNAKE_CASE"]
 
-(*explain*)
+(* Default participant when no "as <name>" is specified in the command, adding the optional argument 
+`default_participant` overrides this with the caller-supplied default. *)
+let system_default_participant = "anonymous"
+
 let parse ?default_participant:participant line =
   let line_stripped = String.strip line |> String.filter ~f:(fun c -> not (Char.equal c '\n')) in
   if String.is_empty line_stripped
@@ -26,7 +29,7 @@ let parse ?default_participant:participant line =
     | [] -> Or_error.error_string "empty command"
     | verb :: remaining_arguments -> 
       let open Result.Let_syntax in
-      let%bind first_word = match String.uppercase verb with 
+      let%bind command = match String.uppercase verb with 
         | "BUY" -> Ok Buy
         | "SELL" -> Ok Sell
         | "BOOK" -> Ok Book
@@ -34,14 +37,12 @@ let parse ?default_participant:participant line =
         | other -> Or_error.error_string [%string "unknown command: %{other} (expected BUY/SELL/BOOK/SUBSCRIBE)"]
       in
 
-      (** match on verb to parse remaining arguments*)
-      (match first_word with 
-        (** match Buy and Sell arguments*)
+      (match command with 
         | Buy| Sell -> (
           match remaining_arguments with 
             | symbol_str :: size_str :: price_str :: rest ->
                 let%bind side =
-                  match first_word with
+                  match command with
                   | Buy -> Ok Side.Buy
                   | Sell -> Ok Side.Sell
                   | _ ->
@@ -71,32 +72,31 @@ let parse ?default_participant:participant line =
                 let%bind time_in_force, rest =
                   match rest with
                   | tif_str :: rest' ->(
-                    if String.(=) tif_str "as"
+                    if String.(=) tif_str "as" (** handle when arg has no given time_in_force*)
                     then Ok(Time_in_force.Day, rest)
                     else
-                    (**adjust to handle use of_string to parse values, and enumerate to handle error messages*)
-                    (**is there a prettier way to do this?*)
-                    try 
-                      (match Time_in_force.of_string tif_str with
-                        | Ioc -> Ok (Ioc, rest')
-                        | Day -> Ok (Day, rest'))
-                    with 
-                      | _ -> Or_error.error_string [%string "unknown time-in-force: %{tif_str} (expected %{Time_in_force.all_str})"])
+                    ( try 
+                        (match Time_in_force.of_string tif_str with
+                          | Ioc -> Ok (Ioc, rest')
+                          | Day -> Ok (Day, rest'))
+                      with 
+                        | _ -> Or_error.error_string 
+                        [%string "unknown time-in-force: %{tif_str} (expected %{Time_in_force.all_str})"]))
                   | [] -> Ok (Day, [])
                 in
                 let%bind participant =
                   match rest with
                   | "as" :: name :: _ | "AS" :: name :: _ -> Ok (Participant.of_string name)
-                  (**if given default participant, overrides the no name, otherwise default to anonymous*)
                   | [] -> (match participant with 
                     | Some name -> Ok name 
-                    | None -> Ok (Participant.of_string "anonymous"))
+                    | None -> Ok (Participant.of_string system_default_participant))
                   | _ ->
                     let trailing = String.concat ~sep:" " rest in
                     Or_error.error_string [%string "unexpected trailing arguments: %{trailing}"]
                 in
                 Ok
-                   (Submit ({symbol
+                   (Submit 
+                   ({symbol
                     ; participant
                     ; side
                     ; price
@@ -107,7 +107,6 @@ let parse ?default_participant:participant line =
                 [%string "expected: BUY|SELL <symbol> <size> <price> [ %{Time_in_force.all_str}] [as <name>]"]
             )
           
-        (** match Book and Subscribe arguments*)
         | Book | Subscribe ->(
           match remaining_arguments with 
           | symbol_str::_ ->
@@ -119,7 +118,7 @@ let parse ?default_participant:participant line =
                   [%string
                   "invalid symbol: %{symbol_str}\nexception: %{exn_str}"]
               in
-              (match first_word with 
+              (match command with 
                 | Book -> Ok (Book symbol : t)
                 | Subscribe -> Ok (Subscribe symbol)
                 | _ -> Or_error.error_string "UNEXPECTED ERROR: should be caught by earlier errors")
@@ -127,6 +126,5 @@ let parse ?default_participant:participant line =
               Or_error.error_string
                 "expected: BOOK|SUBSCRIBE <symbol>"
         )
-        (** unplanned type, clean up this formatting later*)
       )
 ;;
