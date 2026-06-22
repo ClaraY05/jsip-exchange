@@ -20,14 +20,14 @@ let run_client ~host ~port ~participant_name =
   print_endline
     [%string
       {|
-Connected to exchange at %{host}:%{port#Int} as %{participant#Participant}
-Commands: BUY|SELL <symbol> <size> <price> [IOC|DAY]
-          BOOK <symbol>
-          SUBSCRIBE <symbol>  (stream market data)
+  Connected to exchange at %{host}:%{port#Int} as %{participant#Participant}
+  Commands: BUY|SELL <symbol> <size> <price> [IOC|DAY]
+            BOOK <symbol>
+            SUBSCRIBE <symbol>  (stream market data)
 
-Order acknowledgements, fills, and cancellations are temporarily printed
-by the server process; the SUBSCRIBE command attaches you to a per-symbol
-market-data feed.|}];
+  Order acknowledgements, fills, and cancellations are temporarily printed
+  by the server process; the SUBSCRIBE command attaches you to a per-symbol
+  market-data feed.|}];
   let rec loop () =
     print_string "> ";
     match%bind Reader.read_line (Lazy.force Reader.stdin) with
@@ -38,16 +38,19 @@ market-data feed.|}];
       let line = String.strip line in
       if String.is_empty line
       then loop ()
-      else if String.is_prefix line ~prefix:"BOOK"
-      then (
-        match String.chop_prefix line ~prefix:"BOOK " with
-        | None ->
-          print_endline "ERROR: expected BOOK <symbol>";
+      else (
+        match
+          Exchange_command.parse line ~default_participant:participant
+        with
+        | Error msg ->
+          print_endline [%string "ERROR: %{Error.to_string_hum msg}"];
           loop ()
-        | Some rest ->
-          let symbol =
-            Symbol.of_string (String.uppercase (String.strip rest))
+        | Ok (Exchange_command.Submit request) ->
+          let%bind.Deferred.Or_error () =
+            Rpc.Rpc.dispatch_exn Rpc_protocol.submit_order_rpc conn request
           in
+          loop ()
+        | Ok (Exchange_command.Book symbol) ->
           let%bind result =
             Rpc.Rpc.dispatch_exn Rpc_protocol.book_query_rpc conn symbol
           in
@@ -55,17 +58,8 @@ market-data feed.|}];
            | None ->
              print_endline [%string "No book available for %{symbol#Symbol}"]
            | Some result -> print_endline (Book.to_string result));
-          loop ())
-      else if String.is_prefix line ~prefix:"SUBSCRIBE"
-      then (
-        match String.chop_prefix line ~prefix:"SUBSCRIBE " with
-        | None ->
-          print_endline "ERROR: expected SUBSCRIBE <symbol>";
           loop ()
-        | Some rest ->
-          let symbol =
-            Symbol.of_string (String.uppercase (String.strip rest))
-          in
+        | Ok (Exchange_command.Subscribe symbol) ->
           let%bind result =
             Rpc.Pipe_rpc.dispatch
               Rpc_protocol.market_data_rpc
@@ -90,20 +84,6 @@ Continue entering commands as normal.|}];
                   print_endline
                     [%string "[MD] %{Protocol.format_event event}"]));
              loop ()))
-      else (
-        match
-          Protocol.parse_command_with_default_participant
-            line
-            ~default:participant
-        with
-        | Error msg ->
-          print_endline [%string "ERROR: %{msg}"];
-          loop ()
-        | Ok request ->
-          let%bind.Deferred.Or_error () =
-            Rpc.Rpc.dispatch_exn Rpc_protocol.submit_order_rpc conn request
-          in
-          loop ())
   in
   loop ()
 ;;
