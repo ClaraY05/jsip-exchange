@@ -371,11 +371,11 @@ let%expect_test "scenario: two participants trade, book reflects state" =
     FILL fill_id=1 AAPL $150.10 x50 aggressor=5(Charlie) BUY resting=3(Bob)
     === AAPL ===
       BIDS:
-        $149.80 x200
         $149.90 x100
+        $149.80 x200
       ASKS:
-        $150.20 x150
         $150.10 x50
+        $150.20 x150
       BBO: $149.90 x100 / $150.10 x50
     BBO AAPL: $149.90 x100 / $150.10 x50
     |}]
