@@ -18,13 +18,20 @@ let connect_as ~port _participant =
     Tcp.Where_to_connect.of_host_and_port { host = "localhost"; port }
   in
   let%bind conn = Rpc.Connection.client where >>| Result.ok_exn in
-  let%map (_ : Participant.t Or_error.t) =
+  let%bind (_ : Participant.t Or_error.t) =
     Rpc.Rpc.dispatch_exn
       Rpc_protocol.login_rpc
       conn
       (Participant.to_string _participant)
   in
-  { conn }
+  let%bind session_feed, _metadata =
+    Rpc.Pipe_rpc.dispatch_exn Rpc_protocol.session_feed_rpc conn ()
+  in
+  don't_wait_for
+    (Pipe.iter_without_pushback session_feed ~f:(fun event ->
+       let e = Event_formatter.format_event event in
+       print_endline [%string "[for %{_participant#Participant}] %{e}"]));
+  Async.return { conn }
 ;;
 
 let connection client = client.conn

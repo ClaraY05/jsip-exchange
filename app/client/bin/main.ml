@@ -28,7 +28,22 @@ let run_client ~host ~port ~participant_name =
   Order acknowledgements, fills, and cancellations are temporarily printed
   by the server process; the SUBSCRIBE command attaches you to a per-symbol
   market-data feed.|}];
-  let rec loop () =
+  (** login to server and dispatch session feed*)
+  let%bind login = Rpc.Rpc.dispatch_exn Rpc_protocol.login_rpc conn participant_name in
+  (match login with 
+  | Error msg -> print_endline [%string "ERROR: %{Error.to_string_hum msg}"]
+  | Ok _ -> ());
+  let%bind session_feed, _metadata = (Rpc.Pipe_rpc.dispatch_exn Rpc_protocol.session_feed_rpc conn ()) 
+  in
+  (** dispatch session feed *)
+  don't_wait_for
+  (Pipe.iter_without_pushback session_feed ~f:(fun event ->
+     match event with 
+    | Fill fill -> (match (Fill.to_participant_view fill participant) with 
+      | Some msg -> print_endline msg
+      | None -> ())
+    | _ -> ()));
+  let rec loop () = 
     print_string "> ";
     match%bind Reader.read_line (Lazy.force Reader.stdin) with
     | `Eof ->

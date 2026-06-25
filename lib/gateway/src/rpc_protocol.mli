@@ -57,3 +57,10 @@ val market_data_rpc
     production exchange would gate this RPC behind operator-level
     credentials; this simulator does not, but the same intent applies. *)
 val audit_log_rpc : (unit, Exchange_event.t, Error.t) Rpc.Pipe_rpc.t
+
+(** Reads the connection state
+
+    Fails with "not logged in" if there is no existing session, and otherwise
+    returns the Pipe.Reader.t. Client subscribes once after login then drains
+    the pipe . Delivers the Order calls and Fill events. *)
+val session_feed_rpc : (unit, Exchange_event.t, Error.t) Rpc.Pipe_rpc.t

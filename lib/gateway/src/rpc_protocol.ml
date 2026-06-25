@@ -48,3 +48,13 @@ let audit_log_rpc =
     ~bin_error:Error.bin_t
     ()
 ;;
+
+let session_feed_rpc =
+  Rpc.Pipe_rpc.create
+    ~name:"session-feed"
+    ~version:1
+    ~bin_query:Unit.bin_t
+    ~bin_response:Exchange_event.bin_t
+    ~bin_error:Error.bin_t
+    ()
+;;

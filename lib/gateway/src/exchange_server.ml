@@ -95,6 +95,14 @@ let start ~symbols ~port () =
             ignore state;
             let reader = Dispatcher.subscribe_audit dispatcher in
             return (Ok reader))
+        ; Rpc.Pipe_rpc.implement
+            Rpc_protocol.session_feed_rpc
+            (fun (state : Connection_state.t) () ->
+               match state.session with
+               | None -> return (Or_error.error_string "not logged in")
+               | Some _ ->
+                 let reader = Dispatcher.subscribe_audit dispatcher in
+                 return (Ok reader))
         ]
       ~on_unknown_rpc:`Close_connection
       ~on_exception:Log_on_background_exn
