@@ -21,6 +21,21 @@ let default_symbols =
   ]
 ;;
 
+(*=let connect_as' ~where_to_connect participant =
+  let%map connection =
+    Rpc.Connection.client where_to_connect >>| Result.ok_exn
+  in
+  match%bind
+    Rpc.Rpc.dispatch_exn
+      Rpc_protocol.login_rpc
+      connection
+      (Participant.to_string participant)
+  with
+  | Ok _ -> Async.return connection
+  | Error msg ->
+    Async.return [%log.error "main: login failed" (msg : Error.t)]
+;;*)
+
 let connect_as ~where_to_connect participant =
   (* TODO: once login_rpc exists (week 2, exercise 1), dispatch it here so
      the server knows which participant this connection belongs to. For now

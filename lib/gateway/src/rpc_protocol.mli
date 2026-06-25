@@ -11,6 +11,13 @@ open! Core
 open! Async
 open Jsip_types
 
+(** participant logs into exchange.
+
+    Validates the inputted name s.t. there are no empty sections. Registers
+    the participant and session or returns an error on conflict. Resulting
+    connection is a connection state. *)
+val login_rpc : (String.t, Participant.t Or_error.t) Rpc.Rpc.t
+
 (** Submit an order to the exchange.
 
     This is a one-way RPC. The server enqueues the order and returns as soon

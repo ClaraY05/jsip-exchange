@@ -11,6 +11,13 @@ type t =
   ; port : int
   }
 
+module Connection_state = struct
+  type t = { mutable session : Session.t option }
+
+  let initialize = { session = None }
+  let session t = t.session
+end
+
 (* Bound how many client requests can sit in the queue waiting for the
    matching engine. Once the queue is full, [Pipe.write] returns a pending
    deferred and the [submit_order_rpc] handler blocks until the engine has
@@ -40,10 +47,38 @@ let start ~symbols ~port () =
     Rpc.Implementations.create_exn
       ~implementations:
         [ Rpc.Rpc.implement
+            Rpc_protocol.login_rpc
+            (fun (state : Connection_state.t) participant_name ->
+               if String.is_empty participant_name
+                  || String.for_all participant_name ~f:Char.is_whitespace
+               then
+                 Async.return
+                   (Or_error.error_string
+                      "login_rpc: Invalid submitted name, no whitespace / \
+                       empty names allowed")
+               else (
+                 let participant = Participant.of_string participant_name in
+                 match state.session with
+                 | Some _ ->
+                   Async.return
+                     (Or_error.error_string
+                        "login_rpc: user already logged in")
+                 | None ->
+                   state.session <- Some (Session.create participant);
+                   let%bind () =
+                     Dispatcher.set_up_session dispatcher participant
+                   in
+                   Async.return (Ok participant)))
+        ; Rpc.Rpc.implement
             Rpc_protocol.submit_order_rpc
             (fun state request ->
-               ignore state;
-               handle_submit ~request_writer request)
+               match Connection_state.session state with
+               | None ->
+                 Async.return
+                   (Or_error.error_string "submit_order_rpc: not logged in")
+               | Some session ->
+                 let participant = Session.participant session in
+                 handle_submit ~request_writer { request with participant })
         ; Rpc.Rpc.implement' Rpc_protocol.book_query_rpc (fun state symbol ->
             ignore state;
             Matching_engine.book engine symbol
@@ -64,10 +99,22 @@ let start ~symbols ~port () =
       ~on_unknown_rpc:`Close_connection
       ~on_exception:Log_on_background_exn
   in
+  let initial_connection_state _ conn =
+    (* idk if this works *)
+    let state = Connection_state.initialize in
+    let () =
+      don't_wait_for
+        (let%bind () = Rpc.Connection.close_finished conn in
+         match state.session with
+         | None -> Async.return ()
+         | Some session -> Dispatcher.clean_up_session dispatcher session)
+    in
+    state
+  in
   let%map tcp_server =
     Rpc.Connection.serve
       ~implementations
-      ~initial_connection_state:(fun _addr _conn -> ())
+      ~initial_connection_state
       ~where_to_listen:(Tcp.Where_to_listen.of_port port)
       ()
   in
