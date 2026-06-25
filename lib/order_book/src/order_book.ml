@@ -47,10 +47,11 @@ let get_key order : Price_id_key.t =
 
 let set_reverse_index t (orders : Order.t Price_id_key.Map.t) =
   let new_reverse_index =
-    Map.mapi t.reverse_index ~f:(fun ~key:_ ~data ->
-      match Map.find orders data with
-      | Some order -> get_key order
-      | None -> data)
+    Map.fold
+      orders
+      ~init:t.reverse_index
+      ~f:(fun ~key:price_id_key ~data:order acc ->
+        Map.set acc ~key:(Order.order_id order) ~data:price_id_key)
   in
   t.reverse_index <- new_reverse_index
 ;;
