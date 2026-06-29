@@ -3,10 +3,20 @@ open! Async
 open Jsip_types
 open Jsip_order_book
 
+module Requests = struct
+  type t =
+    | Order of Order.Request.t
+    | Cancel of
+        { participant : Participant.t
+        ; client_order_id : Client_order_id.t
+        }
+  [@@deriving sexp, bin_io]
+end
+
 type t =
   { engine : Matching_engine.t
   ; dispatcher : Dispatcher.t
-  ; request_writer : Order.Request.t Pipe.Writer.t
+  ; request_writer : Requests.t Pipe.Writer.t
   ; tcp_server : (Socket.Address.Inet.t, int) Tcp.Server.t
   ; port : int
   }
@@ -24,12 +34,20 @@ end
    without the server's memory growing unboundedly. *)
 let request_queue_size_budget = 1024
 
-let handle_submit ~request_writer (request : Order.Request.t) =
+let handle_write ~request_writer (request : Requests.t) =
   let%map () = Pipe.write_if_open request_writer request in
   Ok ()
 ;;
 
 let start_matching_loop ~engine ~dispatcher request_reader =
+  (*=
+  let participant = Session.participant session in
+                 let cancel_attempt =
+                   Matching_engine.cancel engine participant client_order_id
+                 in
+                 List.iter cancel_attempt ~f:(fun event ->
+                   Session.push session event);
+  *)
   let filter_bad_client_order_ids engine (request : Order.Request.t) =
     match
       Matching_engine.check_client_order_id
@@ -43,9 +61,25 @@ let start_matching_loop ~engine ~dispatcher request_reader =
       ]
     | None -> Matching_engine.submit engine request
   in
+  let handle_cancel_requests
+    engine
+    (participant : Participant.t)
+    (client_order_id : Client_order_id.t)
+    =
+    Matching_engine.cancel engine participant client_order_id
+  in
   don't_wait_for
     (Pipe.iter_without_pushback request_reader ~f:(fun request ->
-       let events = filter_bad_client_order_ids engine request in
+       let events =
+         match request with
+         | Requests.Order request ->
+           filter_bad_client_order_ids engine request
+         | Cancel request ->
+           handle_cancel_requests
+             engine
+             request.participant
+             request.client_order_id
+       in
        Dispatcher.dispatch dispatcher events))
 ;;
 
@@ -97,7 +131,9 @@ let start ~symbols ~port () =
                    (Or_error.error_string "submit_order_rpc: not logged in")
                | Some session ->
                  let participant = Session.participant session in
-                 handle_submit ~request_writer { request with participant })
+                 handle_write
+                   ~request_writer
+                   (Order { request with participant }))
         ; Rpc.Rpc.implement' Rpc_protocol.book_query_rpc (fun state symbol ->
             ignore state;
             Matching_engine.book engine symbol
@@ -111,12 +147,9 @@ let start ~symbols ~port () =
                    (Or_error.error_string "submit_order_rpc: not logged in")
                | Some session ->
                  let participant = Session.participant session in
-                 let cancel_attempt =
-                   Matching_engine.cancel engine participant client_order_id
-                 in
-                 List.iter cancel_attempt ~f:(fun event ->
-                   Session.push session event);
-                 Async.return (Ok ()))
+                 handle_write
+                   ~request_writer
+                   (Cancel { participant; client_order_id }))
         ; Rpc.Pipe_rpc.implement
             Rpc_protocol.market_data_rpc
             (fun state symbols ->
