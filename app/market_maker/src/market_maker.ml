@@ -18,54 +18,6 @@ module Config = struct
   [@@deriving sexp_of]
 end
 
-(** helpers for event handling move within *)
-let get_inventory_change (fill : Fill.t) market_participant =
-  let is_aggressor =
-    Participant.( = ) market_participant fill.aggressor_participant
-  in
-  match fill.aggressor_side with
-  | Buy -> if is_aggressor then fill.size else Size.( * ) fill.size (-1)
-  | Sell -> if is_aggressor then Size.( * ) fill.size (-1) else fill.size
-;;
-
-let get_client_order_id (fill : Fill.t) market_participant =
-  let is_aggressor =
-    Participant.( = ) market_participant fill.aggressor_participant
-  in
-  if is_aggressor
-  then fill.aggressor_client_order_id
-  else fill.resting_client_order_id
-;;
-
-let cancel_symbol_orders
-  (fill : Fill.t)
-  (resting_orders : Order.Request.t Client_order_id.Table.t)
-  cancel_function
-  =
-  let ids_to_cancel =
-    Hashtbl.filteri resting_orders ~f:(fun ~key:_ ~data ->
-      Symbol.( = ) fill.symbol data.symbol)
-    |> Hashtbl.keys
-  in
-  Deferred.List.iter ~how:`Parallel ids_to_cancel ~f:(fun client_order_id ->
-    match%bind cancel_function client_order_id with
-    | Ok () -> Deferred.unit
-    | Error msg ->
-      [%log.error
-        "market_maker: cancel failed"
-          (client_order_id : Client_order_id.t)
-          (msg : Error.t)];
-      Deferred.unit)
-;;
-
-let get_skew (config : Config.t) (symbol : Symbol.t) =
-  let symbol_inventory =
-    Size.to_int (Hashtbl.find_exn config.inventory_counter symbol)
-  in
-  config.fair_value_cents
-  - (symbol_inventory * config.inventory_skew_cents_per_share)
-;;
-
 module Market_maker_bot :
   Jsip_bot_runtime.Bot_runtime.Bot with type Config.t = Config.t = struct
   module Config = struct
@@ -75,6 +27,57 @@ module Market_maker_bot :
   open Jsip_bot_runtime.Bot_runtime
 
   let name = "market_maker_bot"
+
+  (** helpers *)
+  let get_inventory_change (fill : Fill.t) market_participant =
+    let is_aggressor =
+      Participant.( = ) market_participant fill.aggressor_participant
+    in
+    match fill.aggressor_side with
+    | Buy -> if is_aggressor then fill.size else Size.( * ) fill.size (-1)
+    | Sell -> if is_aggressor then Size.( * ) fill.size (-1) else fill.size
+  ;;
+
+  let get_client_order_id (fill : Fill.t) market_participant =
+    let is_aggressor =
+      Participant.( = ) market_participant fill.aggressor_participant
+    in
+    if is_aggressor
+    then fill.aggressor_client_order_id
+    else fill.resting_client_order_id
+  ;;
+
+  let cancel_symbol_orders
+    (fill : Fill.t)
+    (resting_orders : Order.Request.t Client_order_id.Table.t)
+    cancel_function
+    =
+    let ids_to_cancel =
+      Hashtbl.filteri resting_orders ~f:(fun ~key:_ ~data ->
+        Symbol.( = ) fill.symbol data.symbol)
+      |> Hashtbl.keys
+    in
+    Deferred.List.iter
+      ~how:`Parallel
+      ids_to_cancel
+      ~f:(fun client_order_id ->
+        match%bind cancel_function client_order_id with
+        | Ok () -> Deferred.unit
+        | Error msg ->
+          [%log.error
+            "market_maker: cancel failed"
+              (client_order_id : Client_order_id.t)
+              (msg : Error.t)];
+          Deferred.unit)
+  ;;
+
+  let get_skew (config : Config.t) (symbol : Symbol.t) =
+    let symbol_inventory =
+      Size.to_int (Hashtbl.find_exn config.inventory_counter symbol)
+    in
+    config.fair_value_cents
+    - (symbol_inventory * config.inventory_skew_cents_per_share)
+  ;;
 
   let seed_book (config : Config.t) (context : Context.t) =
     let submit (side : Side.t) offset =
@@ -108,7 +111,7 @@ module Market_maker_bot :
               (msg : Error.t)]
     in
     Deferred.List.iter
-      ~how:`Parallel (* don't use parallel use max workers *)
+      ~how:(`Max_concurrent_jobs 30)
       (List.init config.num_levels ~f:Fn.id)
       ~f:(fun level ->
         let offset = config.half_spread_cents + level in
