@@ -35,6 +35,12 @@ val connect_as : port:int -> Participant.t -> client Deferred.t
     feed. *)
 val connect_as_no_login : port:int -> Participant.t -> client Deferred.t
 
+(** Open a bare RPC connection to [port] with no login and no session-feed
+    subscription. For tests that drive RPCs directly — e.g. exercising the
+    "not logged in" / duplicate-login rejection paths — where the fuller
+    {!connect_as} flow would get in the way. *)
+val connect_raw : port:int -> Rpc.Connection.t Deferred.t
+
 (** The raw RPC connection, useful for tests that exercise unusual RPC paths
     (audit log subscriptions, second clients on the same connection, etc.). *)
 val connection : client -> Rpc.Connection.t

@@ -51,6 +51,12 @@ let connect_as_no_login ~port _participant =
   Async.return { conn }
 ;;
 
+let connect_raw ~port =
+  Rpc.Connection.client
+    (Tcp.Where_to_connect.of_host_and_port { host = "localhost"; port })
+  >>| Result.ok_exn
+;;
+
 let connection client = client.conn
 
 let subscribe_metrics client =

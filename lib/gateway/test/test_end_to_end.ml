@@ -498,36 +498,51 @@ let%expect_test "e2e: BBO update after cancel" =
 (* Test login *)
 (* ---------------------------------------------------------------- *)
 
-(*=let%expect_test "e2e: no login before submit" =
+let%expect_test "e2e: submit before login is rejected" =
   with_server ~symbols:[ Harness.aapl ] (fun ~server:_ ~port ->
-    let%bind alice = connect_as_no_login ~port Harness.alice in
-    require_does_raise_async (fun () ->
-      Async.return (rpc_submit alice (Harness.buy ~price_cents:15000 ())));
-    [%expect
-      {| "Symbol.of_string: symbol must contain only alphanumeric characters" |}];
-    [%expect.unreachable];
+    let%bind conn = connect_raw ~port in
+    let%bind result =
+      Rpc.Rpc.dispatch_exn
+        Rpc_protocol.submit_order_rpc
+        conn
+        (Harness.buy ~price_cents:15000 ())
+    in
+    print_s [%sexp (result : unit Or_error.t)];
+    [%expect {| (Error "submit_order_rpc: not logged in") |}];
     return ())
 ;;
 
-let%expect_test "e2e: no login before cancel" =
+let%expect_test "e2e: cancel before login is rejected" =
   with_server ~symbols:[ Harness.aapl ] (fun ~server:_ ~port ->
-    let%bind alice = connect_as_no_login ~port Harness.alice in
-    require_does_raise_async (fun () ->
-      Async.return (rpc_cancel alice (Client_order_id.of_int 0)));
-    [%expect
-      {| "Symbol.of_string: symbol must contain only alphanumeric characters" |}];
-    [%expect.unreachable];
+    let%bind conn = connect_raw ~port in
+    let%bind result =
+      Rpc.Rpc.dispatch_exn
+        Rpc_protocol.cancel_order_rpc
+        conn
+        (Client_order_id.of_int 0)
+    in
+    print_s [%sexp (result : unit Or_error.t)];
+    [%expect {| (Error "submit_order_rpc: not logged in") |}];
     return ())
 ;;
 
-let%expect_test "e2e: two clients attempt to login with the same name" =
+let%expect_test "e2e: logging in with an already-registered name is rejected"
+  =
   with_server ~symbols:[ Harness.aapl ] (fun ~server:_ ~port ->
-    let%bind _ = connect_as ~port Harness.alice in
-    let%bind _ = connect_as ~port Harness.alice in
-    (* Bob places a sell *)
-    [%expect.unreachable];
+    (* First login for Alice succeeds. *)
+    let%bind _alice = connect_as ~port Harness.alice in
+    (* A second connection tries to claim the same name. *)
+    let%bind conn = connect_raw ~port in
+    let%bind result =
+      Rpc.Rpc.dispatch_exn
+        Rpc_protocol.login_rpc
+        conn
+        (Participant.to_string Harness.alice)
+    in
+    print_s [%sexp (result : Participant.t Or_error.t)];
+    [%expect {| (Error "login_rpc: user already exists in dispatch") |}];
     return ())
-;;*)
+;;
 
 (* ---------------------------------------------------------------- *)
 (* Metrics feed *)
