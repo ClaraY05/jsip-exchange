@@ -2,9 +2,9 @@
 
     These drive the bot through the bot runtime with recording [submit] /
     [cancel] closures instead of a live server, mirroring the pattern in
-    [app/bots/test/test_bots.ml]: build a runtime around the bot with mock RPC
-    closures that record every request, drive the bot's callbacks through a
-    [For_testing] context, and inspect what it did. *)
+    [app/bots/test/test_bots.ml]: build a runtime around the bot with mock
+    RPC closures that record every request, drive the bot's callbacks through
+    a [For_testing] context, and inspect what it did. *)
 
 open! Core
 open! Async
@@ -99,9 +99,7 @@ let accept_all bot (requests : Order.Request.t list) =
    shares. *)
 let fill_against (request : Order.Request.t) ~size : Exchange_event.t =
   let aggressor_side : Side.t =
-    match request.side with
-    | Buy -> Sell
-    | Sell -> Buy
+    match request.side with Buy -> Sell | Sell -> Buy
   in
   Fill
     { fill_id = 1
@@ -187,7 +185,9 @@ let%expect_test "a fill updates inventory, cancels the book, and re-quotes \
 let mid_of_ladder (requests : Order.Request.t list) : int =
   let prices_on side =
     List.filter_map requests ~f:(fun req ->
-      Option.some_if (Side.equal req.side side) (Price.to_int_cents req.price))
+      Option.some_if
+        (Side.equal req.side side)
+        (Price.to_int_cents req.price))
   in
   let best_bid = List.max_elt (prices_on Buy) ~compare:Int.compare in
   let best_ask = List.min_elt (prices_on Sell) ~compare:Int.compare in
@@ -220,8 +220,8 @@ let%expect_test "inventory skew is symmetric around fair value" =
     in
     return (mid_of_ladder (List.rev !submitted))
   in
-  (* A fill on the bid makes the bot long (skew down); a fill on the ask makes
-     it short (skew up). *)
+  (* A fill on the bid makes the bot long (skew down); a fill on the ask
+     makes it short (skew up). *)
   let%bind mid_when_long = requote_after ~fill_side:Buy in
   let%bind mid_when_short = requote_after ~fill_side:Sell in
   printf "mid when long:  %d\n" mid_when_long;
