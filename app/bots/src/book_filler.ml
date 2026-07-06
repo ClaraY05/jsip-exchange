@@ -37,6 +37,7 @@ let on_tick (config : Config.t) (context : Bot_runtime.Context.t)
   let submit_order ~symbol ~side ~price ~size =
     let request =
       ({ client_order_id = Client_order_id.of_int config.next_client_id
+       ; participant = Bot_runtime.Context.participant context
        ; symbol
        ; side
        ; price
