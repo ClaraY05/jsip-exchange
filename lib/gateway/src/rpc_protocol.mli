@@ -68,3 +68,13 @@ val audit_log_rpc : (unit, Exchange_event.t, Error.t) Rpc.Pipe_rpc.t
     returns the Pipe.Reader.t. Client subscribes once after login then drains
     the pipe . Delivers the Order calls and Fill events. *)
 val session_feed_rpc : (unit, Exchange_event.t, Error.t) Rpc.Pipe_rpc.t
+
+(** Subscribe to the exchange's health telemetry: one {!Metrics.t} snapshot
+    per second (memory, submit/cancel latency percentiles, pipe occupancy,
+    matching -engine busyness). Backs the monitoring dashboard in
+    [app/dashboard].
+
+    Because each window's percentiles cannot be merged across seconds, the
+    dashboard treats the stream as a time series — it keeps the ~60 most
+    recent snapshots and plots them *)
+val metrics_feed_rpc : (unit, Metrics.t, Error.t) Rpc.Pipe_rpc.t
