@@ -38,8 +38,17 @@ val subscribe_market_data
   -> Exchange_event.t Pipe.Reader.t
 
 (** Subscribe to the full unfiltered event firehose. Intended for the monitor
-    / admin tools. *)
+    / admin tools. [DO NOT EXPOSE] *)
 val subscribe_audit : t -> Exchange_event.t Pipe.Reader.t
+
+(** Subscribe to the per-second metrics feed (see {!Metrics.t}). Backs
+    {!Rpc_protocol.metrics_feed_rpc}; the pipe is removed when its reader
+    closes. *)
+val subscribe_metrics : t -> Metrics.t Pipe.Reader.t
+
+(** Push one metrics snapshot to every metrics subscriber. Called once per
+    second by the sampler in {!Exchange_server.start}. *)
+val push_metrics : t -> Metrics.t -> unit
 
 (** setup / remove a session from the participant table in Dispatcher *)
 val clean_up_session : t -> Session.t -> unit Deferred.t
@@ -58,6 +67,22 @@ val set_up_session : t -> Participant.t -> unit Deferred.t
 
     Each session lookup is O(1) and independent of subscriber count. *)
 val dispatch : t -> Exchange_event.t list -> unit
+
+(** Number of logged-in participants (each has exactly one session). *)
+val session_count : t -> int
+
+(** Current buffered length of each audit-subscriber pipe. One entry per
+    subscriber, in unspecified order. Feeds {!Metrics.Pipe_occupancy}. *)
+val audit_pipe_lengths : t -> int list
+
+(** Current buffered length of each market-data subscriber pipe, grouped by
+    the symbol whose bag they are in. A subscriber to several symbols
+    contributes to several groups. *)
+val market_data_pipe_lengths : t -> (Symbol.t * int list) list
+
+(** Current outbound-pipe length of each logged-in session, keyed by
+    participant. *)
+val session_pipe_lengths : t -> (Participant.t * int) list
 
 module For_testing : sig
   val audit_subscriber_count : t -> int

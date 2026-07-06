@@ -6,12 +6,14 @@ type t =
   { market_data_subscribers_by_symbol :
       Exchange_event.t Pipe.Writer.t Bag.t Symbol.Table.t
   ; audit_subscribers : Exchange_event.t Pipe.Writer.t Bag.t
+  ; metrics_subscribers : Metrics.t Pipe.Writer.t Bag.t
   ; mutable participants : Session.t Participant.Table.t
   }
 
 let create () =
   { market_data_subscribers_by_symbol = Symbol.Table.create ()
   ; audit_subscribers = Bag.create ()
+  ; metrics_subscribers = Bag.create ()
   ; participants = Participant.Table.create ()
   }
 ;;
@@ -61,6 +63,21 @@ let push_market_data t event symbol =
 let push_audit t event =
   Bag.iter t.audit_subscribers ~f:(fun writer ->
     Pipe.write_without_pushback_if_open writer event)
+;;
+
+(* instrumentation tracking *)
+let subscribe_metrics t =
+  let reader, writer = Pipe.create () in
+  let elt = Bag.add t.metrics_subscribers writer in
+  don't_wait_for
+    (let%map () = Pipe.closed writer in
+     Bag.remove t.metrics_subscribers elt);
+  reader
+;;
+
+let push_metrics t metrics =
+  Bag.iter t.metrics_subscribers ~f:(fun writer ->
+    Pipe.write_without_pushback_if_open writer metrics)
 ;;
 
 let clean_up_session t session =
@@ -130,6 +147,23 @@ let dispatch_event t (event : Exchange_event.t) =
 ;;
 
 let dispatch t events = List.iter events ~f:(dispatch_event t)
+let session_count t = Hashtbl.length t.participants
+
+let audit_pipe_lengths t =
+  Bag.to_list t.audit_subscribers |> List.map ~f:Pipe.length
+;;
+
+let market_data_pipe_lengths t =
+  Hashtbl.to_alist t.market_data_subscribers_by_symbol
+  |> List.map ~f:(fun (symbol, subscribers) ->
+    symbol, Bag.to_list subscribers |> List.map ~f:Pipe.length)
+;;
+
+let session_pipe_lengths t =
+  Hashtbl.to_alist t.participants
+  |> List.map ~f:(fun (participant, session) ->
+    participant, Session.outbound_length session)
+;;
 
 module For_testing = struct
   let audit_subscriber_count t = Bag.length t.audit_subscribers

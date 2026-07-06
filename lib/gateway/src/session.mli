@@ -25,6 +25,10 @@ val participant : t -> Participant.t
     session. *)
 val reader : t -> Exchange_event.t Pipe.Reader.t
 
+(** Number of events currently buffered in the outbound pipe waiting to be
+    read by a client. A rising value means this client is a slow consumer. *)
+val outbound_length : t -> int
+
 (** Push an event onto the session's outbound pipe. *)
 val push : t -> Exchange_event.t -> unit
 
