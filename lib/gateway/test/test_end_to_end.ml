@@ -528,3 +528,143 @@ let%expect_test "e2e: two clients attempt to login with the same name" =
     [%expect.unreachable];
     return ())
 ;;*)
+
+(* ---------------------------------------------------------------- *)
+(* Metrics feed *)
+(* ---------------------------------------------------------------- *)
+
+(* A short metrics interval makes snapshots arrive in milliseconds instead of
+   once a real second. *)
+let fast_metrics = Time_ns.Span.of_ms 20.
+
+(* The dashboard consumes a whole [Metrics.t] each tick, so this checks the
+   snapshot's *content* is coherent, not just a couple of counters. The
+   volatile values (latency spans, live-word counts, timestamps) can't be
+   pinned, so instead we assert invariants that must hold on every window:
+
+   - latency percentiles are well-formed: [p50 <= p90 <= p99 <= max];
+   - memory is actually reported: [live_words > 0];
+   - engine busyness agrees with throughput: every processed request is one
+     loop iteration and one latency sample, so per window
+     [iterations = submits + cancels].
+
+   Those ride alongside the deterministic totals (session count,
+   submit/cancel counts, drained request queue). *)
+module Metrics_observation = struct
+  type t =
+    { connected_sessions : int
+    ; total_submits : int
+    ; total_cancels : int
+    ; final_request_queue : int
+    ; all_percentiles_ordered : bool
+    ; all_live_words_positive : bool
+    ; iterations_match_throughput : bool
+    }
+  [@@deriving sexp_of]
+end
+
+let observe_metrics pipe ~expected_submit ~expected_cancel =
+  let span_le a b = Time_ns.Span.compare a b <= 0 in
+  let percentiles_ordered (s : Metrics.Latency_summary.t) =
+    s.count > 0
+    && span_le s.p50 s.p90
+    && span_le s.p90 s.p99
+    && span_le s.p99 s.max
+  in
+  let total_submits = ref 0
+  and total_cancels = ref 0
+  and connected_sessions = ref 0
+  and final_request_queue = ref 0
+  and all_percentiles_ordered = ref true
+  and all_live_words_positive = ref true
+  and iterations_match_throughput = ref true in
+  (* Count one window's samples, checking percentile ordering as we go. *)
+  let window_count = function
+    | None -> 0
+    | Some (s : Metrics.Latency_summary.t) ->
+      if not (percentiles_ordered s) then all_percentiles_ordered := false;
+      s.count
+  in
+  let rec loop reads =
+    if (!total_submits >= expected_submit
+        && !total_cancels >= expected_cancel)
+       || reads >= 25
+    then return ()
+    else (
+      let%bind (m : Metrics.t) = read_metrics pipe in
+      connected_sessions := m.connected_sessions;
+      final_request_queue := m.pipe_occupancy.request_queue;
+      if m.gc.live_words <= 0 then all_live_words_positive := false;
+      let window_submits = window_count m.submit_latency in
+      let window_cancels = window_count m.cancel_latency in
+      if m.engine_busyness.iterations <> window_submits + window_cancels
+      then iterations_match_throughput := false;
+      total_submits := !total_submits + window_submits;
+      total_cancels := !total_cancels + window_cancels;
+      loop (reads + 1))
+  in
+  let%map () = loop 0 in
+  { Metrics_observation.connected_sessions = !connected_sessions
+  ; total_submits = !total_submits
+  ; total_cancels = !total_cancels
+  ; final_request_queue = !final_request_queue
+  ; all_percentiles_ordered = !all_percentiles_ordered
+  ; all_live_words_positive = !all_live_words_positive
+  ; iterations_match_throughput = !iterations_match_throughput
+  }
+;;
+
+let%expect_test "metric_collector: metrics feed reports sessions, \
+                 latencies, and queue"
+  =
+  with_server
+    ~metrics_interval:fast_metrics
+    ~symbols:[ Harness.aapl ]
+    (fun ~server:_ ~port ->
+       (* Alice just logs in (idle); Bob does the trading. Two participants
+          means [connected_sessions] should read 2. *)
+       let%bind alice = connect_as ~port Harness.alice in
+       let%bind bob = connect_as ~port Harness.bob in
+       let%bind metrics = subscribe_metrics alice in
+       (* Two resting (non-crossing) sells and one cancel: 2 submits and 1
+          cancel processed, no fills. *)
+       let first = Client_order_id.of_int 0 in
+       let%bind () =
+         rpc_submit
+           bob
+           (Harness.sell
+              ~price_cents:15100
+              ~participant:Harness.bob
+              ~client_id:first
+              ())
+       in
+       let%bind () =
+         rpc_submit
+           bob
+           (Harness.sell
+              ~price_cents:15200
+              ~participant:Harness.bob
+              ~client_id:(Client_order_id.of_int 1)
+              ())
+       in
+       let%bind () = rpc_cancel bob first in
+       (* Flush Bob's session-feed prints before asserting on metrics. *)
+       let%bind () = Async.Scheduler.yield_until_no_jobs_remain () in
+       [%expect
+         {|
+         [for Bob] ACCEPTED client-id=0 id=1 AAPL SELL 100@$151.00 DAY
+         [for Bob] ACCEPTED client-id=1 id=2 AAPL SELL 100@$152.00 DAY
+         [for Bob] CANCELLED client_id=0 id=1 AAPL remaining=100 reason=PARTICIPANT_REQUESTED
+         |}];
+       let%bind observation =
+         observe_metrics metrics ~expected_submit:2 ~expected_cancel:1
+       in
+       print_s [%sexp (observation : Metrics_observation.t)];
+       [%expect
+         {|
+         ((connected_sessions 2) (total_submits 2) (total_cancels 1)
+          (final_request_queue 0) (all_percentiles_ordered true)
+          (all_live_words_positive true) (iterations_match_throughput true))
+         |}];
+       return ())
+;;

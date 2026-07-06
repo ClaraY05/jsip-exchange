@@ -12,8 +12,18 @@ type t
 
 (** Start a server on the given port with the given symbols. Returns the
     server handle and the port it is actually listening on (useful when you
-    pass port 0 to get an OS-assigned port). *)
-val start : symbols:Symbol.t list -> port:int -> unit -> t Deferred.t
+    pass port 0 to get an OS-assigned port).
+
+    [metrics_interval] controls how often the [metrics_feed_rpc] snapshot is
+    sampled and broadcast; it defaults to one second. Tests pass a small
+    value so a snapshot arrives promptly instead of after a real wall-clock
+    second. *)
+val start
+  :  ?metrics_interval:Time_ns.Span.t
+  -> symbols:Symbol.t list
+  -> port:int
+  -> unit
+  -> t Deferred.t
 
 (** The port the server is listening on. *)
 val port : t -> int

@@ -3,8 +3,10 @@ open! Async
 open Jsip_gateway
 open Jsip_types
 
-let with_server ~symbols f =
-  let%bind server = Exchange_server.start ~symbols ~port:0 () in
+let with_server ?metrics_interval ~symbols f =
+  let%bind server =
+    Exchange_server.start ?metrics_interval ~symbols ~port:0 ()
+  in
   let port = Exchange_server.port server in
   Monitor.protect
     (fun () -> f ~server ~port)
@@ -50,6 +52,19 @@ let connect_as_no_login ~port _participant =
 ;;
 
 let connection client = client.conn
+
+let subscribe_metrics client =
+  let%map pipe, _metadata =
+    Rpc.Pipe_rpc.dispatch_exn Rpc_protocol.metrics_feed_rpc client.conn ()
+  in
+  pipe
+;;
+
+let read_metrics pipe =
+  match%map Pipe.read pipe with
+  | `Eof -> failwith "metrics feed closed unexpectedly"
+  | `Ok metrics -> metrics
+;;
 
 let rpc_submit client request =
   Rpc.Rpc.dispatch_exn Rpc_protocol.submit_order_rpc client.conn request

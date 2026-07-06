@@ -4,12 +4,23 @@ open Jsip_types
 open Jsip_order_book
 
 module Requests = struct
+  (* What the client asked for. *)
+  module Payload = struct
+    type t =
+      | Order of Order.Request.t
+      | Cancel of
+          { participant : Participant.t
+          ; client_order_id : Client_order_id.t
+          }
+    [@@deriving sexp, bin_io]
+  end
+
+  (* The payload plus the time the RPC handler received it, used to measure
+     end-to-end latency once it finishes processing. *)
   type t =
-    | Order of Order.Request.t
-    | Cancel of
-        { participant : Participant.t
-        ; client_order_id : Client_order_id.t
-        }
+    { payload : Payload.t
+    ; received_at : Time_ns.t
+    }
   [@@deriving sexp, bin_io]
 end
 
@@ -34,20 +45,24 @@ end
    without the server's memory growing unboundedly. *)
 let request_queue_size_budget = 1024
 
-let handle_write ~request_writer (request : Requests.t) =
+(* Take one metrics snapshot (resetting the collector's window) and broadcast
+   it to every [metrics_feed_rpc] subscriber. *)
+let push_metrics_sample ~dispatcher ~collector ~request_reader =
+  Dispatcher.push_metrics
+    dispatcher
+    (Metrics_collector.snapshot_and_reset
+       collector
+       ~dispatcher
+       ~request_queue_depth:(Pipe.length request_reader))
+;;
+
+let handle_write ~request_writer (payload : Requests.Payload.t) =
+  let request = { Requests.payload; received_at = Time_ns.now () } in
   let%map () = Pipe.write_if_open request_writer request in
   Ok ()
 ;;
 
-let start_matching_loop ~engine ~dispatcher request_reader =
-  (*=
-  let participant = Session.participant session in
-                 let cancel_attempt =
-                   Matching_engine.cancel engine participant client_order_id
-                 in
-                 List.iter cancel_attempt ~f:(fun event ->
-                   Session.push session event);
-  *)
+let start_matching_loop ~engine ~dispatcher ~collector request_reader =
   let filter_bad_client_order_ids engine (request : Order.Request.t) =
     match
       Matching_engine.check_client_order_id
@@ -68,27 +83,42 @@ let start_matching_loop ~engine ~dispatcher request_reader =
     =
     Matching_engine.cancel engine participant client_order_id
   in
+  (* handle submitted requests *)
   don't_wait_for
-    (Pipe.iter_without_pushback request_reader ~f:(fun request ->
-       let events =
-         match request with
-         | Requests.Order request ->
-           filter_bad_client_order_ids engine request
-         | Cancel request ->
-           handle_cancel_requests
-             engine
-             request.participant
-             request.client_order_id
-       in
-       Dispatcher.dispatch dispatcher events))
+    (Pipe.iter_without_pushback
+       request_reader
+       ~f:(fun ({ payload; received_at } : Requests.t) ->
+         let started = Time_ns.now () in
+         Metrics_collector.record_iteration collector ~now:started;
+         let events =
+           match payload with
+           | Order request ->
+             let events = filter_bad_client_order_ids engine request in
+             Metrics_collector.record_submit_latency
+               collector
+               (Time_ns.diff (Time_ns.now ()) received_at);
+             events
+           | Cancel { participant; client_order_id } ->
+             let events =
+               handle_cancel_requests engine participant client_order_id
+             in
+             Metrics_collector.record_cancel_latency
+               collector
+               (Time_ns.diff (Time_ns.now ()) received_at);
+             events
+         in
+         Dispatcher.dispatch dispatcher events))
 ;;
 
-let start ~symbols ~port () =
+let default_metrics_interval = Time_ns.Span.of_sec 1.
+
+let start ?(metrics_interval = default_metrics_interval) ~symbols ~port () =
   let engine = Matching_engine.create symbols in
   let dispatcher = Dispatcher.create () in
+  let collector = Metrics_collector.create () in
   let request_reader, request_writer = Pipe.create () in
   Pipe.set_size_budget request_writer request_queue_size_budget;
-  start_matching_loop ~engine ~dispatcher request_reader;
+  start_matching_loop ~engine ~dispatcher ~collector request_reader;
   let implementations =
     Rpc.Implementations.create_exn
       ~implementations:
@@ -163,6 +193,12 @@ let start ~symbols ~port () =
             let reader = Dispatcher.subscribe_audit dispatcher in
             return (Ok reader))
         ; Rpc.Pipe_rpc.implement
+            Rpc_protocol.metrics_feed_rpc
+            (fun state () ->
+               ignore state;
+               let reader = Dispatcher.subscribe_metrics dispatcher in
+               return (Ok reader))
+        ; Rpc.Pipe_rpc.implement
             Rpc_protocol.session_feed_rpc
             (fun (state : Connection_state.t) () ->
                match state.session with
@@ -193,6 +229,14 @@ let start ~symbols ~port () =
       ()
   in
   let actual_port = Tcp.Server.listening_on tcp_server in
+  (* Sample and broadcast health metrics every [metrics_interval], until the
+     server shuts down. [~stop] ties the recurring job to the server's
+     lifetime so it doesn't outlive it (important in tests, where many
+     servers share one scheduler). *)
+  Clock_ns.every
+    ~stop:(Tcp.Server.close_finished tcp_server)
+    metrics_interval
+    (fun () -> push_metrics_sample ~dispatcher ~collector ~request_reader);
   { engine; dispatcher; request_writer; tcp_server; port = actual_port }
 ;;
 

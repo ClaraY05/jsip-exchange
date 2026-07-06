@@ -6,9 +6,13 @@ open! Async
 open Jsip_types
 open Jsip_gateway
 
-(** Start a server on an OS-assigned port, run [f], then shut down. *)
+(** Start a server on an OS-assigned port, run [f], then shut down.
+    [metrics_interval] is forwarded to {!Exchange_server.start}; pass a small
+    value when the test needs [metrics_feed_rpc] snapshots to arrive quickly
+    rather than once a real second. *)
 val with_server
-  :  symbols:Symbol.t list
+  :  ?metrics_interval:Time_ns.Span.t
+  -> symbols:Symbol.t list
   -> (server:Exchange_server.t -> port:int -> 'a Deferred.t)
   -> 'a Deferred.t
 
@@ -34,6 +38,14 @@ val connect_as_no_login : port:int -> Participant.t -> client Deferred.t
 (** The raw RPC connection, useful for tests that exercise unusual RPC paths
     (audit log subscriptions, second clients on the same connection, etc.). *)
 val connection : client -> Rpc.Connection.t
+
+(** Subscribe to the exchange's metrics feed ({!Metrics.t} snapshots). Pair
+    with a small [metrics_interval] on {!with_server} so snapshots arrive
+    promptly. *)
+val subscribe_metrics : client -> Metrics.t Pipe.Reader.t Deferred.t
+
+(** Read the next metrics snapshot, raising if the feed closed. *)
+val read_metrics : Metrics.t Pipe.Reader.t -> Metrics.t Deferred.t
 
 (** Submit an order via RPC. The RPC is one-way: this returns once the server
     has enqueued the request. Participant-targeted events (acceptance, fills,

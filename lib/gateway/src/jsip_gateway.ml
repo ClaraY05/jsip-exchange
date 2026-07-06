@@ -1,4 +1,6 @@
 module Event_formatter = Event_formatter
+module Metrics = Metrics
+module Metrics_collector = Metrics_collector
 module Rpc_protocol = Rpc_protocol
 module Session = Session
 module Dispatcher = Dispatcher
