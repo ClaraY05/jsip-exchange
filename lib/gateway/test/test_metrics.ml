@@ -9,7 +9,7 @@ open Jsip_test_harness
    serialize deterministically — note that latency values render as spans
    ([2.5ms]), not raw integers. *)
 
-let%expect_test "Latency_summary sexp" =
+let%expect_test "metrics: Latency_summary sexp" =
   let summary : Metrics.Latency_summary.t =
     { count = 1000
     ; p50 = Time_ns.Span.of_us 120.
@@ -23,7 +23,7 @@ let%expect_test "Latency_summary sexp" =
     {| ((count 1000) (p50 120us) (p90 2.5ms) (p99 30ms) (max 88ms)) |}]
 ;;
 
-let%expect_test "Gc_stats sexp" =
+let%expect_test "metrics: Gc_stats sexp" =
   let gc : Metrics.Gc_stats.t =
     { live_words = 123_456
     ; heap_words = 262_144
@@ -41,7 +41,7 @@ let%expect_test "Gc_stats sexp" =
     |}]
 ;;
 
-let%expect_test "Pipe_occupancy sexp" =
+let%expect_test "metrics: Pipe_occupancy sexp" =
   let occupancy : Metrics.Pipe_occupancy.t =
     { request_queue = 3
     ; audit = [ 0; 12 ]
@@ -57,7 +57,7 @@ let%expect_test "Pipe_occupancy sexp" =
     |}]
 ;;
 
-let%expect_test "Engine_busyness sexp" =
+let%expect_test "metrics: Engine_busyness sexp" =
   let busyness : Metrics.Engine_busyness.t =
     { iterations = 5000; max_inter_iteration_gap = Time_ns.Span.of_ms 12. }
   in
