@@ -1,8 +1,0 @@
-; Place the compiled bundle next to index.html so the dashboard server has a
-; single directory to serve as its document root.
-
-(rule
- (target main.bc.js)
- (deps ../bin/main.bc.js)
- (action
-  (copy ../bin/main.bc.js main.bc.js)))
