@@ -1,6 +1,0 @@
-(library
- (name jsip_dashboard_controller_test)
- (libraries core jsip_types jsip_gateway_protocol jsip_dashboard_controller)
- (inline_tests)
- (preprocess
-  (pps ppx_jane)))

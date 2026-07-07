@@ -1,12 +1,12 @@
 open! Core
 module Metrics = Jsip_gateway_protocol.Metrics
-module Controller = Jsip_dashboard_controller.Controller
+module Controller = Jsip_dashboard.Controller
 
 let span_ms ms = Time_ns.Span.of_ms ms
 
 (* A synthetic snapshot. [live] drives the memory series, [submit_p50] the
-   submit-latency series; [cancel] toggles whether a cancel summary is present
-   (so we can check the [None]-gap projection). *)
+   submit-latency series; [cancel] toggles whether a cancel summary is
+   present (so we can check the [None]-gap projection). *)
 let sample ~second ~live ~submit_p50 ~cancel : Metrics.t =
   { sampled_at = Time_ns.of_span_since_epoch (Time_ns.Span.of_int_sec second)
   ; gc =
@@ -53,7 +53,9 @@ let feed_all ?(window_capacity = Controller.default_window_capacity) ms =
 
 (* Print only timezone-independent fields — [latest_sampled_at] renders a
    local-time string, which would make this test machine-dependent. *)
-let%expect_test "projects series oldest-first; absent cancel latency -> all None" =
+let%expect_test "projects series oldest-first; absent cancel latency -> all \
+                 None"
+  =
   let c =
     feed_all
       [ sample ~second:0 ~live:100 ~submit_p50:1. ~cancel:false
@@ -69,13 +71,15 @@ let%expect_test "projects series oldest-first; absent cancel latency -> all None
         ~submit_p50_ms:(d.submit_latency.p50_ms : Controller.Series.t)
         ~cancel_p50_ms:(d.cancel_latency.p50_ms : Controller.Series.t)
         ~submit_count_latest:(d.submit_latency.count_latest : int option)];
-  [%expect {|
+  [%expect
+    {|
     ((window_len 2) (live_words ((100) (150))) (submit_p50_ms ((1) (2)))
      (cancel_p50_ms (() ())) (submit_count_latest (10)))
     |}]
 ;;
 
-let%test_unit "window is bounded to its own capacity and evicts oldest first" =
+let%test_unit "window is bounded to its own capacity and evicts oldest first"
+  =
   let window_capacity = 3 in
   let many =
     List.init (window_capacity + 2) ~f:(fun i ->
@@ -83,7 +87,7 @@ let%test_unit "window is bounded to its own capacity and evicts oldest first" =
   in
   let d = Controller.display (feed_all ~window_capacity many) in
   [%test_result: int] d.window_len ~expect:window_capacity;
-  (* Fed 5 snapshots (live 0..4) into a capacity-3 window; the oldest two were
-     dropped, so the oldest retained memory reading is live = 2. *)
+  (* Fed 5 snapshots (live 0..4) into a capacity-3 window; the oldest two
+     were dropped, so the oldest retained memory reading is live = 2. *)
   [%test_result: float option] d.memory.live_words.(0) ~expect:(Some 2.)
 ;;

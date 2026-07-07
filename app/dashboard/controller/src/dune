@@ -1,6 +1,0 @@
-(library
- (name jsip_dashboard_controller)
- (public_name jsip-exchange.jsip_dashboard_controller)
- (libraries core jsip_types jsip_gateway_protocol)
- (preprocess
-  (pps ppx_jane)))
