@@ -1,6 +1,7 @@
 open! Core
 open! Async
 open Jsip_types
+module Metrics = Jsip_gateway_protocol.Metrics
 
 type t =
   { market_data_subscribers_by_symbol :

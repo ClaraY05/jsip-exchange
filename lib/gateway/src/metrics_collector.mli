@@ -11,6 +11,7 @@
     computes the percentiles and then clears the buffers. *)
 
 open! Core
+module Metrics = Jsip_gateway_protocol.Metrics
 
 type t
 

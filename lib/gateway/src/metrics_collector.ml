@@ -1,4 +1,5 @@
 open! Core
+module Metrics = Jsip_gateway_protocol.Metrics
 
 type t =
   { submit_samples : Time_ns.Span.t Queue.t

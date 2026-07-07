@@ -1,6 +1,7 @@
 open! Core
 open! Async
 open Jsip_types
+module Metrics = Jsip_gateway_protocol.Metrics
 
 let login_rpc =
   Rpc.Rpc.create
@@ -68,12 +69,8 @@ let session_feed_rpc =
     ()
 ;;
 
+(* Defined in the js-safe protocol library so the browser dashboard can link
+   the identical wire definition; re-exported here for the server side. *)
 let metrics_feed_rpc =
-  Rpc.Pipe_rpc.create
-    ~name:"metrics-feed"
-    ~version:1
-    ~bin_query:Unit.bin_t
-    ~bin_response:Metrics.bin_t
-    ~bin_error:Error.bin_t
-    ()
+  Jsip_gateway_protocol.Metrics_protocol.metrics_feed_rpc
 ;;

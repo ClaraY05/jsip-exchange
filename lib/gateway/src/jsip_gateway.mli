@@ -6,7 +6,7 @@
     (per-participant session feeds, per-symbol market data, audit firehose). *)
 
 module Event_formatter = Event_formatter
-module Metrics = Metrics
+module Metrics = Jsip_gateway_protocol.Metrics
 module Metrics_collector = Metrics_collector
 module Rpc_protocol = Rpc_protocol
 module Session = Session

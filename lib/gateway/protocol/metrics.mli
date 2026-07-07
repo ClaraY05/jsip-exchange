@@ -1,11 +1,12 @@
 (** A once-per-second snapshot of exchange health, streamed over
-    {!Rpc_protocol.metrics_feed_rpc} to the monitoring dashboard.
+    {!Metrics_protocol.metrics_feed_rpc} to the monitoring dashboard.
 
     [Metrics.t] records how the {e process} is behaving (memory, latency,
     queue depth).
 
-    Produced by {!Metrics_collector.snapshot_and_reset} and pushed to
-    subscribers by {!Dispatcher.push_metrics}. *)
+    Produced once per second on the exchange server and pushed to every
+    metrics subscriber. A pure data type — no Async — so both the server and
+    the browser dashboard can serialize it. *)
 
 open! Core
 open Jsip_types
@@ -13,7 +14,8 @@ open Jsip_types
 (** Per-second summary of one RPC's latency distribution. [count] is the
     number of samples in the window, so it doubles as that RPC's throughput
     (requests/second). Percentiles are computed server-side over the window's
-    samples; see the rolling-window note on {!Rpc_protocol.metrics_feed_rpc}. *)
+    samples; see the rolling-window note on
+    {!Metrics_protocol.metrics_feed_rpc}. *)
 module Latency_summary : sig
   type t =
     { count : int
@@ -45,10 +47,10 @@ end
 
 (** Current queue length of every subscriber pipe, so a slow consumer backing
     up is visible immediately. [request_queue] is the inbound matching-engine
-    queue (the bounded pipe that feeds
-    {!Exchange_server.start_matching_loop}); the others are outbound. Each
-    [int] is a [Pipe.length]: one entry per audit subscriber, per market-data
-    subscriber (grouped by symbol), and per logged-in session. *)
+    queue (the bounded pipe that feeds the matching loop); the others are
+    outbound. Each [int] is a [Pipe.length]: one entry per audit subscriber,
+    per market-data subscriber (grouped by symbol), and per logged-in
+    session. *)
 module Pipe_occupancy : sig
   type t =
     { request_queue : int
