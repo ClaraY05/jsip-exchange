@@ -286,3 +286,55 @@ let%expect_test "snapshot lists levels in price-time priority order" =
       BBO: $150.00 x100 / $150.05 x100
     |}]
 ;;
+
+let%expect_test "snapshot aggregates orders from multiple participants at one \
+                 price level"
+  =
+  let book = Order_book.create Harness.aapl in
+  let alice_size = 40 in
+  let bob_size = 60 in
+  let charlie_size = 25 in
+  let next_size = 100 in
+  (* Alice, Bob, and Charlie all rest sells at $150.00. A fourth order one
+     cent higher lets us confirm aggregation stops at the price boundary
+     rather than swallowing the next level. *)
+  Order_book.add
+    book
+    (make_order
+       ~side:Sell
+       ~price_cents:15000
+       ~order_id:1
+       ~participant:Harness.alice
+       ~size:alice_size
+       ());
+  Order_book.add
+    book
+    (make_order
+       ~side:Sell
+       ~price_cents:15000
+       ~order_id:2
+       ~participant:Harness.bob
+       ~size:bob_size
+       ());
+  Order_book.add
+    book
+    (make_order
+       ~side:Sell
+       ~price_cents:15000
+       ~order_id:3
+       ~participant:Harness.charlie
+       ~size:charlie_size
+       ());
+  Order_book.add
+    book
+    (make_order
+       ~side:Sell
+       ~price_cents:15001
+       ~order_id:4
+       ~size:next_size
+       ());
+  (* TODO(human): assert the snapshot aggregates the three $150.00 sells into
+     a single level whose size is [alice_size + bob_size + charlie_size], with
+     the $150.01 order as a separate level. *)
+  ()
+;;
