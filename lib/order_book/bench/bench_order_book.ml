@@ -45,6 +45,13 @@ let aapl = Symbol.of_string "AAPL"
 let alice = Participant.of_string "Alice"
 let bob = Participant.of_string "Bob"
 
+(* One shared generator for the whole benchmark. Every resting Day order is
+   registered by the engine under [(participant, client_order_id)] with
+   [Hashtbl.add_exn], so ids must never repeat across helpers or bench
+   bodies. A single monotonic generator guarantees that; each call site still
+   pulls its id with [Client_order_id.Generator.next client_gen]. *)
+let client_gen = Client_order_id.Generator.create ()
+
 (** Build a book with [n] resting sell orders at prices 1..n (in cents). This
     gives a realistic spread of prices for benchmarking find_match and
     best_price queries. *)
@@ -54,7 +61,9 @@ let book_with_n_asks ?(min_price = 10_000) n =
   for i = 1 to n do
     let order =
       Order.create
-        { client_order_id = Client_order_id.of_int 0
+        { client_order_id =
+            Client_order_id.of_int
+              (Client_order_id.Generator.next client_gen)
         ; symbol = aapl
         ; participant = bob
         ; side = Sell
@@ -76,7 +85,9 @@ let engine_with_n_asks ?(min_price = 10_000) n =
     ignore
       (Matching_engine.submit
          engine
-         { client_order_id = Client_order_id.of_int 0
+         { client_order_id =
+             Client_order_id.of_int
+               (Client_order_id.Generator.next client_gen)
          ; symbol = aapl
          ; participant = bob
          ; side = Sell
@@ -99,7 +110,8 @@ let bench_find_match ~n =
   (* Incoming buy at a price that matches the best ask *)
   let incoming =
     Order.create
-      { client_order_id = Client_order_id.of_int 0
+      { client_order_id =
+          Client_order_id.of_int (Client_order_id.Generator.next client_gen)
       ; symbol = aapl
       ; participant = alice
       ; side = Buy
@@ -119,7 +131,8 @@ let bench_find_match_no_cross ~n =
   (* Incoming buy at a price below all asks — no match possible *)
   let incoming =
     Order.create
-      { client_order_id = Client_order_id.of_int 0
+      { client_order_id =
+          Client_order_id.of_int (Client_order_id.Generator.next client_gen)
       ; symbol = aapl
       ; participant = alice
       ; side = Buy
@@ -145,7 +158,8 @@ let bench_add_remove ~n =
   let book, gen = book_with_n_asks ~min_price n in
   let order =
     Order.create
-      { client_order_id = Client_order_id.of_int 0
+      { client_order_id =
+          Client_order_id.of_int (Client_order_id.Generator.next client_gen)
       ; symbol = aapl
       ; participant = alice
       ; side = Sell
@@ -179,7 +193,9 @@ let bench_submit_ioc_cross ~n =
        let events =
          Matching_engine.submit
            engine
-           { client_order_id = Client_order_id.of_int 0
+           { client_order_id =
+               Client_order_id.of_int
+                 (Client_order_id.Generator.next client_gen)
            ; symbol = aapl
            ; participant = alice
            ; side = Buy
@@ -193,7 +209,9 @@ let bench_submit_ioc_cross ~n =
        ignore
          (Matching_engine.submit
             engine
-            { client_order_id = Client_order_id.of_int 0
+            { client_order_id =
+                Client_order_id.of_int
+                  (Client_order_id.Generator.next client_gen)
             ; symbol = aapl
             ; participant = bob
             ; side = Sell
@@ -213,7 +231,9 @@ let bench_submit_ioc_no_match ~n =
     ignore
       (Matching_engine.submit
          engine
-         { client_order_id = Client_order_id.of_int 0
+         { client_order_id =
+             Client_order_id.of_int
+               (Client_order_id.Generator.next client_gen)
          ; symbol = aapl
          ; participant = alice
          ; side = Buy
@@ -233,7 +253,9 @@ let bench_submit_sweep ~n =
     ignore
       (Matching_engine.submit
          !engine
-         { client_order_id = Client_order_id.of_int 0
+         { client_order_id =
+             Client_order_id.of_int
+               (Client_order_id.Generator.next client_gen)
          ; symbol = aapl
          ; participant = alice
          ; side = Buy
@@ -255,7 +277,8 @@ let bench_find_match_alloc ~n =
   let book, gen = book_with_n_asks ~min_price n in
   let incoming =
     Order.create
-      { client_order_id = Client_order_id.of_int 0
+      { client_order_id =
+          Client_order_id.of_int (Client_order_id.Generator.next client_gen)
       ; symbol = aapl
       ; participant = alice
       ; side = Buy
