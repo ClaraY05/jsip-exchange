@@ -52,13 +52,20 @@ let bob = Participant.of_string "Bob"
    pulls its id with [Client_order_id.Generator.next client_gen]. *)
 let client_gen = Client_order_id.Generator.create ()
 
-(** Build a book with [n] resting sell orders at prices 1..n (in cents). This
-    gives a realistic spread of prices for benchmarking find_match and
-    best_price queries. *)
-let book_with_n_asks ?(min_price = 10_000) n =
+(** Build a book with [n] resting sell orders on AAPL, returning the book and
+    its id generator so callers can keep minting non-colliding order ids.
+
+    By default each order rests at a distinct price ([min_price + i], in
+    cents), giving a realistic spread for [find_match]/[best_price]
+    benchmarks. With [~is_same:true] every order instead rests at the single
+    price [min_price], stacking the whole side at one level — the pathological
+    input for [snapshot], which must then collapse them into a single
+    aggregated [Level.t]. *)
+let book_with_n_asks ?(min_price = 10_000) ?(is_same = false) n =
   let book = Order_book.create aapl in
   let gen = Order_id.Generator.create () in
   for i = 1 to n do
+    let price = if is_same then min_price else min_price + i in
     let order =
       Order.create
         { client_order_id =
@@ -67,7 +74,7 @@ let book_with_n_asks ?(min_price = 10_000) n =
         ; symbol = aapl
         ; participant = bob
         ; side = Sell
-        ; price = Price.of_int_cents (min_price + i)
+        ; price = Price.of_int_cents price
         ; size = Size.of_int 100
         ; time_in_force = Day
         }
@@ -173,6 +180,28 @@ let bench_add_remove ~n =
   Bench.Test.create ~name:[%string "add+remove (n=%{n#Int})"] (fun () ->
     Order_book.add book order;
     Order_book.remove book oid)
+;;
+
+(* Time [snapshot] over a book built by [make_book]. [snapshot] walks the
+   whole side aggregating runs of equal price into [Level.t]s, so its cost
+   scales with the number of resting orders — the [same_price] and
+   [distinct_price] fixtures bracket the two extremes of that walk. *)
+let bench_snapshot_of ~name make_book =
+  let book = make_book () in
+  Bench.Test.create ~name (fun () ->
+    ignore (Order_book.snapshot book : Book.t))
+;;
+
+let bench_snapshot ~n =
+  bench_snapshot_of
+    ~name:[%string "snapshot_same_price (n=%{n#Int})"]
+    (fun () -> fst (book_with_n_asks ~is_same:true n))
+;;
+
+let bench_snapshot_distinct ~n =
+  bench_snapshot_of
+    ~name:[%string "snapshot_distinct_price (n=%{n#Int})"]
+    (fun () -> fst (book_with_n_asks n))
 ;;
 
 (* ---------------------------------------------------------------- *)
@@ -329,8 +358,16 @@ let () =
         [ bench_find_match_alloc ~n:100 ]
       ]
   in
+  let snapshot_tests =
+    List.concat
+      [ List.map sizes ~f:(fun n -> bench_snapshot ~n)
+      ; List.map sizes ~f:(fun n -> bench_snapshot_distinct ~n)
+      ]
+  in
   Command_unix.run
     (Command.group
        ~summary:"JSIP order-book benchmarks"
-       [ "existing", Bench.make_command tests ])
+       [ "existing", Bench.make_command tests
+       ; "snapshot", Bench.make_command snapshot_tests
+       ])
 ;;
