@@ -144,8 +144,17 @@ let bench_associative =
    in how much they allocate (watch the mWd/Run column). Inputs are prebuilt
    so the timed op is just the pattern under test. *)
 let bench_allocation =
-  (* TODO: benchmark for part 4, 0d *)
-  []
+  let test_list = [ 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14 ] in
+  let test_f x = x > 7 in
+  [ Bench.Test.create ~name:(sprintf "Silly Built_list") (fun () ->
+      ignore (Allocations.Build_list.silly test_list))
+  ; Bench.Test.create ~name:(sprintf "Non Silly Built_list") (fun () ->
+      ignore (Allocations.Build_list.non_silly test_list))
+  ; Bench.Test.create ~name:(sprintf "Silly First-match") (fun () ->
+      ignore (Allocations.First_match.silly test_list ~f:test_f))
+  ; Bench.Test.create ~name:(sprintf "Non Silly First-match") (fun () ->
+      ignore (Allocations.First_match.non_silly test_list ~f:test_f))
+  ]
 ;;
 
 let command =
