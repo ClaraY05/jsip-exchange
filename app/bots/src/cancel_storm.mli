@@ -18,8 +18,7 @@
 
     The one random choice (each order's side) draws from
     {!Jsip_bot_runtime.Bot_runtime.Context.random}, so a fixed seed replays
-    identically. See {!Jsip_scenarios.Cancel_scenario} for the driving
-    scenario. *)
+    identically. See {!Jsip_scenarios.Cancel_storm} for the driving scenario. *)
 
 open! Core
 open Jsip_types
