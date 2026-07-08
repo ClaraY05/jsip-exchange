@@ -1,7 +1,6 @@
 open! Bonsai_web
 
-(** The bonsai_web application, the browser analogue of
-    {!Jsip_monitor.Term_app}.
+(** The bonsai_web application.
 
     On activation it opens the page's own websocket (same origin), dispatches
     [Jsip_gateway_protocol.Metrics_protocol.metrics_feed_rpc], and drains
