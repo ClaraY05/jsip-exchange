@@ -5,11 +5,12 @@
     each with a *fresh* client order ID (resting orders never free their IDs,
     so a reused one would be rejected as a duplicate). These tests pin
     exactly that behavior by recording what a single [on_tick] puts on the
-    wire, via the shared [Test_bots.make_recording_bot] harness. *)
+    wire, via the local {!make_recording_bot} harness. *)
 
 open! Core
 open! Async
 open Jsip_types
+open Jsip_fundamental
 open Jsip_bot_runtime
 open! Jsip_bots
 open Jsip_test_harness
@@ -19,11 +20,10 @@ open Jsip_test_harness
    [Config.t] and the fundamental alone, with nothing stochastic to pin. *)
 
 (* The fundamental the recording harness pins for every configured symbol
-   (see [Test_bots.make_recording_bot]'s [initial_price_cents]). The spammer
-   reads this each tick and rests [passive_offset_cents] off it, so the tests
-   assert emitted prices directly against [fair_cents] and the configured
-   offset — both values the bot actually consults — rather than a notional
-   reference. *)
+   (see {!make_recording_bot}). The spammer reads this each tick and rests
+   [passive_offset_cents] off it, so the tests assert emitted prices directly
+   against [fair_cents] and the configured offset — both values the bot
+   actually consults — rather than a notional reference. *)
 let fair_cents = 15_000
 
 let spammer_config ~symbols ~orders_per_tick : Spammer.Config.t =
@@ -57,12 +57,56 @@ let print_requests (submitted : Order.Request.t list ref) =
       req.time_in_force)
 ;;
 
+(* A recording [Spammer] bot whose mock oracle knows *every* symbol the bot
+   is configured for, reading the set straight off [config.symbols]. The
+   shared [Test_bots.make_recording_bot] pins a single-symbol ([aapl]) oracle
+   — fine for the single-symbol tests, but the multi-symbol burst test needs
+   a fundamental for [tsla] too, and [Fundamental_oracle.price] raises on an
+   unknown symbol. Every symbol is pinned to a flat, motionless [fair_cents]
+   fundamental (zero volatility, zero mean reversion) so prices are exact.
+   Submits and cancels are recorded rather than dispatched. *)
+let make_recording_bot (config : Spammer.Config.t) =
+  let submitted = ref [] in
+  let cancelled = ref [] in
+  let submit request =
+    submitted := request :: !submitted;
+    return (Ok ())
+  in
+  let cancel order_id =
+    cancelled := order_id :: !cancelled;
+    return (Ok ())
+  in
+  let flat_config =
+    { Fundamental_oracle.Config.initial_price_cents = fair_cents
+    ; volatility_cents_per_sec = 0.0
+    ; mean_reversion_strength = 0.0
+    ; tick_interval = Time_ns.Span.of_sec 1.0
+    }
+  in
+  let oracle =
+    Fundamental_oracle.create
+      (Symbol.Map.of_alist_exn
+         (List.map config.symbols ~f:(fun symbol -> symbol, flat_config)))
+      ~seed:42
+  in
+  let bot =
+    Bot_runtime.create
+      (module Spammer)
+      config
+      ~participant:Harness.alice
+      ~oracle
+      ~rng:(Splittable_random.of_int 7)
+      ~submit
+      ~cancel
+      ~tick_interval:(Time_ns.Span.of_sec 1.0)
+  in
+  bot, submitted, cancelled
+;;
+
 let%expect_test "one tick fires a full burst of fresh, non-marketable orders"
   =
   let config = spammer_config ~symbols:[ Harness.aapl ] ~orders_per_tick:3 in
-  let bot, submitted, _cancelled =
-    Test_bots.make_recording_bot (module Spammer) config ()
-  in
+  let bot, submitted, _cancelled = make_recording_bot config in
   let ctx = Bot_runtime.For_testing.context_of bot in
   let%bind () = Spammer.on_tick config ctx in
   printf "burst size: %d\n" (List.length !submitted);
@@ -106,13 +150,7 @@ let%expect_test "burst covers every configured symbol" =
   let config =
     spammer_config ~symbols:[ Harness.aapl; Harness.tsla ] ~orders_per_tick:2
   in
-  let bot, submitted, _cancelled =
-    Test_bots.make_recording_bot
-      (module Spammer)
-      config
-      ~symbols:[ Harness.aapl; Harness.tsla ]
-      ()
-  in
+  let bot, submitted, _cancelled = make_recording_bot config in
   let ctx = Bot_runtime.For_testing.context_of bot in
   let%bind () = Spammer.on_tick config ctx in
   printf "burst size: %d\n" (List.length !submitted);
@@ -130,9 +168,7 @@ let%expect_test "burst covers every configured symbol" =
 
 let%expect_test "client order IDs stay fresh across ticks" =
   let config = spammer_config ~symbols:[ Harness.aapl ] ~orders_per_tick:2 in
-  let bot, submitted, _cancelled =
-    Test_bots.make_recording_bot (module Spammer) config ()
-  in
+  let bot, submitted, _cancelled = make_recording_bot config in
   let ctx = Bot_runtime.For_testing.context_of bot in
   let%bind () = Spammer.on_tick config ctx in
   let%bind () = Spammer.on_tick config ctx in
@@ -157,9 +193,7 @@ let%expect_test "client order IDs stay fresh across ticks" =
 
 let%expect_test "on_event is a no-op: a fill triggers no submit or cancel" =
   let config = spammer_config ~symbols:[ Harness.aapl ] ~orders_per_tick:2 in
-  let bot, submitted, cancelled =
-    Test_bots.make_recording_bot (module Spammer) config ()
-  in
+  let bot, submitted, cancelled = make_recording_bot config in
   (* A fill in which one of the bot's own resting orders (owned by the
      harness participant, [Harness.alice]) trades against a taker. The
      spammer exists only to flood; it is not reactive, so a fill must move

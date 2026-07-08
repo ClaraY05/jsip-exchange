@@ -1,7 +1,7 @@
 open! Core
 open! Async
 open Jsip_types
-open Jsip_bot_runtime
+module Context = Jsip_bot_runtime.Bot_runtime.Context
 
 module Config = struct
   type t =
@@ -19,14 +19,10 @@ end
 let name = "spammer"
 
 (* No startup work: all of the bot's pressure lives in [on_tick]. *)
-let on_start (_ : Config.t) (_ : Bot_runtime.Context.t) = Deferred.unit
+let on_start (_ : Config.t) (_ : Context.t) = Deferred.unit
 
 (* The spammer only produces events; it never reacts to them. *)
-let on_event
-  (_ : Config.t)
-  (_ : Bot_runtime.Context.t)
-  (_ : Exchange_event.t)
-  =
+let on_event (_ : Config.t) (_ : Context.t) (_ : Exchange_event.t) =
   Deferred.unit
 ;;
 
@@ -55,13 +51,19 @@ let passive_price (config : Config.t) fair =
 
 (* One deliberately non-marketable resting order at [price] (see
    {!passive_price}). *)
-let make_request (config : Config.t) ~client_order_id ~symbol ~price
+let make_request
+  (config : Config.t)
+  (context : Context.t)
+  ~client_order_id
+  ~symbol
+  ~price
   : Order.Request.t
   =
   { client_order_id
   ; symbol
   ; side = config.side
   ; price
+  ; participant = Context.participant context
   ; size = Size.of_int config.order_size
   ; time_in_force = Day
   }
@@ -70,15 +72,15 @@ let make_request (config : Config.t) ~client_order_id ~symbol ~price
 (* Fire one request at the exchange. [Context.submit] is one-way: it returns
    once the server has enqueued the request, and the accept/reject arrives
    later on the session feed (which this bot ignores). *)
-let submit (ctx : Bot_runtime.Context.t) request =
-  match%map Bot_runtime.Context.submit ctx request with
+let submit (context : Context.t) request =
+  match%map Context.submit context request with
   | Ok () -> ()
   | Error err ->
     [%log.error
       "spammer: submit failed" (request : Order.Request.t) (err : Error.t)]
 ;;
 
-let on_tick (config : Config.t) (ctx : Bot_runtime.Context.t) =
+let on_tick (config : Config.t) (context : Context.t) =
   (* Build the full burst for this tick: [orders_per_tick] fresh orders for
      every symbol, each priced off that symbol's current fundamental so they
      rest. Assembling the requests (with fresh IDs) is the easy part; how
@@ -87,11 +89,11 @@ let on_tick (config : Config.t) (ctx : Bot_runtime.Context.t) =
   let burst =
     List.concat_map config.symbols ~f:(fun symbol ->
       let price =
-        passive_price config (Bot_runtime.Context.fundamental ctx symbol)
+        passive_price config (Context.fundamental context symbol)
       in
       List.init config.orders_per_tick ~f:(fun (_ : int) ->
         let client_order_id = fresh_client_order_id config in
-        make_request config ~client_order_id ~symbol ~price))
+        make_request config context ~client_order_id ~symbol ~price))
   in
   (* Fire the burst with up to [max_concurrent_submits] requests in flight at
      once. This still floods — many round-trips overlap instead of trickling
@@ -102,5 +104,5 @@ let on_tick (config : Config.t) (ctx : Bot_runtime.Context.t) =
   Deferred.List.iter
     ~how:(`Max_concurrent_jobs config.max_concurrent_submits)
     burst
-    ~f:(submit ctx)
+    ~f:(submit context)
 ;;

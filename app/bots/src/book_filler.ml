@@ -1,7 +1,7 @@
 open! Core
 open! Async
 open Jsip_types
-open Jsip_bot_runtime
+module Context = Jsip_bot_runtime.Bot_runtime.Context
 
 module Config = struct
   type t =
@@ -21,23 +21,19 @@ let name = "book_filler"
    spawn an unbounded fan of concurrent dispatches within a single tick. *)
 let max_concurrent_submits = 50
 
-let on_start (_config : Config.t) (_context : Bot_runtime.Context.t)
-  : unit Deferred.t
-  =
+let on_start (_config : Config.t) (_context : Context.t) : unit Deferred.t =
   (* Book filler has no ladder or window state to prime. *)
   Deferred.unit
 ;;
 
-let on_tick (config : Config.t) (context : Bot_runtime.Context.t)
-  : unit Deferred.t
-  =
+let on_tick (config : Config.t) (context : Context.t) : unit Deferred.t =
   (* On each tick, submit [config.orders_per_tick] fresh resting Day orders
      across [config.symbols], priced so they rest rather than match *)
-  let rng = Bot_runtime.Context.random context in
+  let rng = Context.random context in
   let submit_order ~symbol ~side ~price ~size =
     let request =
       ({ client_order_id = Client_order_id.of_int config.next_client_id
-       ; participant = Bot_runtime.Context.participant context
+       ; participant = Context.participant context
        ; symbol
        ; side
        ; price
@@ -47,7 +43,7 @@ let on_tick (config : Config.t) (context : Bot_runtime.Context.t)
        : Order.Request.t)
     in
     config.next_client_id <- config.next_client_id + 1;
-    match%map Bot_runtime.Context.submit context request with
+    match%map Context.submit context request with
     | Ok () -> ()
     | Error error ->
       [%log.error "book_filler: submit failed" (error : Error.t)]
@@ -56,7 +52,7 @@ let on_tick (config : Config.t) (context : Bot_runtime.Context.t)
     ~how:(`Max_concurrent_jobs max_concurrent_submits)
     config.symbols
     ~f:(fun symbol ->
-      let fair_price = Bot_runtime.Context.fundamental context symbol in
+      let fair_price = Context.fundamental context symbol in
       Deferred.List.iter
         ~how:(`Max_concurrent_jobs max_concurrent_submits)
         (List.init config.orders_per_tick ~f:Fn.id)
@@ -90,7 +86,7 @@ let on_tick (config : Config.t) (context : Bot_runtime.Context.t)
    variants here if you want it to respond to, say, an [Order_reject]. *)
 let on_event
   (_config : Config.t)
-  (_context : Bot_runtime.Context.t)
+  (_context : Context.t)
   (_event : Exchange_event.t)
   : unit Deferred.t
   =

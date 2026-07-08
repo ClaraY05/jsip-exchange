@@ -1,7 +1,7 @@
 open! Core
 open! Async
 open Jsip_types
-open Jsip_bot_runtime
+module Context = Jsip_bot_runtime.Bot_runtime.Context
 
 module Percent = struct
   type t = float [@@deriving sexp_of]
@@ -55,16 +55,12 @@ let marketable_cross_cents = 5
    so it joins the book instead of trading. *)
 let resting_offset_cents = 5
 
-let on_start (_config : Config.t) (_context : Bot_runtime.Context.t)
-  : unit Deferred.t
-  =
+let on_start (_config : Config.t) (_context : Context.t) : unit Deferred.t =
   (* No ladder or window state to prime; the bot reacts purely on ticks. *)
   Deferred.unit
 ;;
 
-let on_tick (config : Config.t) (context : Bot_runtime.Context.t)
-  : unit Deferred.t
-  =
+let on_tick (config : Config.t) (context : Context.t) : unit Deferred.t =
   (* helpers *)
   let random_size ~rng ~mean_size ~size_spread_fraction =
     let jitter =
@@ -86,7 +82,7 @@ let on_tick (config : Config.t) (context : Bot_runtime.Context.t)
     ~(side : Side.t)
     : Price.t
     =
-    let fundamental = Bot_runtime.Context.fundamental context symbol in
+    let fundamental = Context.fundamental context symbol in
     let best on_side =
       match Hashtbl.find config.bbo_cache symbol with
       | None -> None
@@ -117,7 +113,7 @@ let on_tick (config : Config.t) (context : Bot_runtime.Context.t)
   in
   (* Most ticks do nothing: only with probability [tick_chance] does the bot
      submit a single order, with a random symbol, side, size, price, and TIF. *)
-  let rng = Bot_runtime.Context.random context in
+  let rng = Context.random context in
   let roll = Splittable_random.float rng ~lo:0.0 ~hi:1.0 in
   if Float.( > ) roll (Percent.to_float config.tick_chance)
      || List.is_empty config.symbols
@@ -148,7 +144,7 @@ let on_tick (config : Config.t) (context : Bot_runtime.Context.t)
     in
     let request =
       ({ client_order_id = Client_order_id.of_int config.next_client_id
-       ; participant = Bot_runtime.Context.participant context
+       ; participant = Context.participant context
        ; symbol
        ; side
        ; price
@@ -158,7 +154,7 @@ let on_tick (config : Config.t) (context : Bot_runtime.Context.t)
        : Order.Request.t)
     in
     config.next_client_id <- config.next_client_id + 1;
-    match%map Bot_runtime.Context.submit context request with
+    match%map Context.submit context request with
     | Ok () -> ()
     | Error error ->
       [%log.error "noise_trader: submit failed" (error : Error.t)])
@@ -166,7 +162,7 @@ let on_tick (config : Config.t) (context : Bot_runtime.Context.t)
 
 let on_event
   (config : Config.t)
-  (_context : Bot_runtime.Context.t)
+  (_context : Context.t)
   (event : Exchange_event.t)
   : unit Deferred.t
   =

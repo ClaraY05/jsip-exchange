@@ -91,6 +91,7 @@ let run_cycle (config : Config.t) context =
     ; symbol
     ; side
     ; price
+    ; participant = Context.participant context
     ; size = Size.of_int config.order_size
     ; time_in_force = Day
     }

@@ -1,7 +1,7 @@
 open! Core
 open! Async
 open Jsip_types
-open Jsip_bot_runtime
+module Context = Jsip_bot_runtime.Bot_runtime.Context
 
 (* A pathological *consumer*: it subscribes to a feed and then reads it
    slower than the exchange produces onto it, so the exchange-side buffer
@@ -33,9 +33,7 @@ end
 
 let name = "slow_consumer"
 
-let on_start (_config : Config.t) (_context : Bot_runtime.Context.t)
-  : unit Deferred.t
-  =
+let on_start (_config : Config.t) (_context : Context.t) : unit Deferred.t =
   (* Nothing to prime. The feeds this bot subscribes to is decided by the
      scenario's [Bot_spec.t] (the session feed is always subscribed; set
      [is_marketdata_consumer = true] and list [symbols] to aim the busier
@@ -43,16 +41,14 @@ let on_start (_config : Config.t) (_context : Bot_runtime.Context.t)
   Deferred.unit
 ;;
 
-let on_tick (_config : Config.t) (_context : Bot_runtime.Context.t)
-  : unit Deferred.t
-  =
+let on_tick (_config : Config.t) (_context : Context.t) : unit Deferred.t =
   (* A slow consumer only reads; it never submits or cancels. *)
   Deferred.unit
 ;;
 
 let on_event
   (config : Config.t)
-  (_context : Bot_runtime.Context.t)
+  (_context : Context.t)
   (_event : Exchange_event.t)
   : unit Deferred.t
   =
