@@ -58,9 +58,9 @@ let client_gen = Client_order_id.Generator.create ()
     By default each order rests at a distinct price ([min_price + i], in
     cents), giving a realistic spread for [find_match]/[best_price]
     benchmarks. With [~is_same:true] every order instead rests at the single
-    price [min_price], stacking the whole side at one level — the pathological
-    input for [snapshot], which must then collapse them into a single
-    aggregated [Level.t]. *)
+    price [min_price], stacking the whole side at one level — the
+    pathological input for [snapshot], which must then collapse them into a
+    single aggregated [Level.t]. *)
 let book_with_n_asks ?(min_price = 10_000) ?(is_same = false) n =
   let book = Order_book.create aapl in
   let gen = Order_id.Generator.create () in
@@ -105,6 +105,19 @@ let engine_with_n_asks ?(min_price = 10_000) n =
        : Exchange_event.t list)
   done;
   engine
+;;
+
+(** Build a matching engine that trades [n] distinct symbols (["SYM0"] ..
+    ["SYM<n-1>"]), each with an empty book. This is the fixture for the
+    symbol-lookup benchmark: with no resting orders, the only cost in a
+    [Matching_engine.book] call is resolving the symbol to its book, so the
+    benchmark measures the [Symbol.Map] lookup and nothing else. Returns the
+    engine and the symbol list so a caller can pick one to look up. *)
+let engine_with_n_symbols n =
+  let symbols =
+    List.init n ~f:(fun i -> Symbol.of_string [%string "SYM%{i#Int}"])
+  in
+  Matching_engine.create symbols, symbols
 ;;
 
 (* ---------------------------------------------------------------- *)
@@ -202,6 +215,23 @@ let bench_snapshot_distinct ~n =
   bench_snapshot_of
     ~name:[%string "snapshot_distinct_price (n=%{n#Int})"]
     (fun () -> fst (book_with_n_asks n))
+;;
+
+(* ---------------------------------------------------------------- *)
+(* Symbol Lookup Time *)
+(* ---------------------------------------------------------------- *)
+(* Time the engine's pure symbol->book lookup ([Matching_engine.book]) over
+   an engine trading [n] symbols. Unlike [submit]/[cancel], [book] does
+   nothing but resolve the symbol to its order book, so this isolates the
+   cost of that resolution — today an O(log n) walk of string comparisons
+   through [Symbol.Map], which is exactly what Exercise 2 sets out to make
+   O(1). We build the engine (the fixture) once, outside the thunk, and time
+   only the lookup inside it. *)
+let bench_lookup ~n =
+  let engine, symbols = engine_with_n_symbols n in
+  let target = List.random_element_exn symbols in
+  Bench.Test.create ~name:[%string "symbol_lookup (n=%{n#Int})"] (fun () ->
+    ignore (Matching_engine.book engine target : Order_book.t option))
 ;;
 
 (* ---------------------------------------------------------------- *)
@@ -364,10 +394,13 @@ let () =
       ; List.map sizes ~f:(fun n -> bench_snapshot_distinct ~n)
       ]
   in
+  let lookup_sizes = [ 10; 100; 1_000; 10_000 ] in
+  let lookup_tests = List.map lookup_sizes ~f:(fun n -> bench_lookup ~n) in
   Command_unix.run
     (Command.group
        ~summary:"JSIP order-book benchmarks"
        [ "existing", Bench.make_command tests
        ; "snapshot", Bench.make_command snapshot_tests
+       ; "symbol-lookup", Bench.make_command lookup_tests
        ])
 ;;

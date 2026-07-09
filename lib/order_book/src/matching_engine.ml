@@ -12,8 +12,32 @@ module Participant_client_order_ids = struct
   include functor Hashable.Make_plain
 end
 
+module Symbol_registry = struct
+  type t =
+    { books : Order_book.t Array.t
+    ; symbol_indexes : int Symbol.Table.t
+    }
+  [@@deriving sexp_of]
+
+  let create symbols : t =
+    { books =
+        Array.of_list
+          (List.map symbols ~f:(fun symbol -> Order_book.create symbol))
+    ; symbol_indexes =
+        Symbol.Table.of_alist_exn
+          (List.mapi symbols ~f:(fun i symbol -> symbol, i))
+    }
+  ;;
+
+  let book t symbol =
+    match Hashtbl.find t.symbol_indexes symbol with
+    | None -> None
+    | Some index -> Some t.books.(index)
+  ;;
+end
+
 type t =
-  { books : Order_book.t Symbol.Map.t
+  { book_registry : Symbol_registry.t
   ; order_id_gen : Order_id.Generator.t
   ; mutable next_fill_id : int
   ; mutable participant_client_order_ids :
@@ -22,11 +46,7 @@ type t =
 [@@deriving sexp_of]
 
 let create symbols =
-  let books =
-    List.map symbols ~f:(fun sym -> sym, Order_book.create sym)
-    |> Symbol.Map.of_alist_exn
-  in
-  { books
+  { book_registry = Symbol_registry.create symbols
   ; order_id_gen = Order_id.Generator.create ()
   ; next_fill_id = 1
   ; participant_client_order_ids =
@@ -40,7 +60,7 @@ let check_client_order_id t participant client_order_id =
     ({ participant; client_order_id } : Participant_client_order_ids.t)
 ;;
 
-let book t symbol = Map.find t.books symbol
+let book t symbol = Symbol_registry.book t.book_registry symbol
 
 (* remove an order *)
 let cancel t participant client_order_id =
@@ -129,7 +149,7 @@ let rec match_loop ~book ~order ~fill_id =
 ;;
 
 let submit t (request : Order.Request.t) =
-  match Map.find t.books request.symbol with
+  match Symbol_registry.book t.book_registry request.symbol with
   | None ->
     [ Exchange_event.Order_reject { request; reason = "unknown symbol" } ]
   | Some book ->
