@@ -64,21 +64,22 @@ let run_client ~host ~port ~participant_name =
         | Ok (Exchange_command.Cancel client_order_id) ->
             let%bind.Deferred.Or_error () = Rpc.Rpc.dispatch_exn Rpc_protocol.cancel_order_rpc conn client_order_id in
           loop ()
-        | Ok (Exchange_command.Book symbol) ->
+        | Ok (Exchange_command.Book symbol_id) ->
           let%bind result =
-            Rpc.Rpc.dispatch_exn Rpc_protocol.book_query_rpc conn symbol
+            Rpc.Rpc.dispatch_exn Rpc_protocol.book_query_rpc conn symbol_id
           in
           (match result with
            | None ->
-             print_endline [%string "No book available for %{symbol#Symbol}"]
+             print_endline
+               [%string "No book available for %{symbol_id#Symbol_id}"]
            | Some result -> print_endline (Book.to_string result));
           loop ()
-        | Ok (Exchange_command.Subscribe symbol) ->
+        | Ok (Exchange_command.Subscribe symbol_id) ->
           let%bind result =
             Rpc.Pipe_rpc.dispatch
               Rpc_protocol.market_data_rpc
               conn
-              [ symbol ]
+              [ symbol_id ]
           in
           (match result with
            | Error err | Ok (Error err) ->
@@ -89,7 +90,7 @@ let run_client ~host ~port ~participant_name =
              print_endline
                [%string
                  {|
-Subscribed to %{symbol#Symbol} market data. Updates will appear below.
+Subscribed to %{symbol_id#Symbol_id} market data. Updates will appear below.
 Continue entering commands as normal.|}];
              (* Read market data in the background; the command loop
                 continues running concurrently. *)

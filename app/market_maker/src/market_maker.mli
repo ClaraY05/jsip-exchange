@@ -15,7 +15,7 @@ open Jsip_types
 (** Configuration for the market maker. *)
 module Config : sig
   type t =
-    { symbol : Symbol.t
+    { symbol_id : Symbol_id.t
     ; fair_value_cents : int
     (** The market maker's estimate of the true price, in cents. *)
     ; half_spread_cents : int
@@ -28,7 +28,7 @@ module Config : sig
     ; client_id_manager : Client_order_id.Generator.t
     (** handles client ids *)
     ; inventory_skew_cents_per_share : int
-    ; mutable inventory_counter : Size.t Symbol.Table.t
+    ; mutable inventory_counter : Size.t Symbol_id.Table.t
     ; mutable resting_client_order_ids :
         Order.Request.t Client_order_id.Table.t
     }

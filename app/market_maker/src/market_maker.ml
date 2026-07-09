@@ -4,14 +4,14 @@ open Jsip_types
 
 module Config = struct
   type t =
-    { symbol : Symbol.t
+    { symbol_id : Symbol_id.t
     ; fair_value_cents : int
     ; half_spread_cents : int
     ; size_per_level : int
     ; num_levels : int
     ; client_id_manager : Client_order_id.Generator.t
     ; inventory_skew_cents_per_share : int
-    ; mutable inventory_counter : Size.t Symbol.Table.t
+    ; mutable inventory_counter : Size.t Symbol_id.Table.t
     ; mutable resting_client_order_ids :
         Order.Request.t Client_order_id.Table.t
     }
@@ -54,7 +54,7 @@ module Market_maker_bot :
     =
     let ids_to_cancel =
       Hashtbl.filteri resting_orders ~f:(fun ~key:_ ~data ->
-        Symbol.( = ) fill.symbol data.symbol)
+        Symbol_id.( = ) fill.symbol_id data.symbol_id)
       |> Hashtbl.keys
     in
     Deferred.List.iter
@@ -71,9 +71,9 @@ module Market_maker_bot :
           Deferred.unit)
   ;;
 
-  let get_skew (config : Config.t) (symbol : Symbol.t) =
+  let get_skew (config : Config.t) (symbol_id : Symbol_id.t) =
     let symbol_inventory =
-      Size.to_int (Hashtbl.find_exn config.inventory_counter symbol)
+      Size.to_int (Hashtbl.find_exn config.inventory_counter symbol_id)
     in
     config.fair_value_cents
     - (symbol_inventory * config.inventory_skew_cents_per_share)
@@ -91,7 +91,7 @@ module Market_maker_bot :
         ({ client_order_id =
              Client_order_id.of_int
                (Client_order_id.Generator.next config.client_id_manager)
-         ; symbol = config.symbol
+         ; symbol_id = config.symbol_id
          ; participant = Context.participant context
          ; side
          ; price
@@ -150,17 +150,17 @@ module Market_maker_bot :
       Deferred.unit
     | Fill fill ->
       let inventory_change = get_inventory_change fill participant in
-      (match Hashtbl.find config.inventory_counter fill.symbol with
+      (match Hashtbl.find config.inventory_counter fill.symbol_id with
        | Some value ->
          let new_inventory = Size.( + ) inventory_change value in
          Hashtbl.set
            config.inventory_counter
-           ~key:fill.symbol
+           ~key:fill.symbol_id
            ~data:new_inventory
        | None ->
          Hashtbl.set
            config.inventory_counter
-           ~key:fill.symbol
+           ~key:fill.symbol_id
            ~data:inventory_change);
       (* remove order if whole order size is consumed *)
       let client_order_id = get_client_order_id fill participant in
@@ -188,7 +188,7 @@ module Market_maker_bot :
           (Context.cancel context)
       in
       let new_config =
-        { config with fair_value_cents = get_skew config fill.symbol }
+        { config with fair_value_cents = get_skew config fill.symbol_id }
       in
       seed_book new_config context
     | Order_reject _ | Cancel_reject _ | Best_bid_offer_update _

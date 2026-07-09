@@ -21,7 +21,7 @@ let alice = Jsip_test_harness.Harness.alice
    fundamental, but the runtime requires one. *)
 let oracle () =
   let config =
-    Symbol.Map.of_alist_exn
+    Symbol_id.Map.of_alist_exn
       [ ( aapl
         , { Fundamental_oracle.Config.initial_price_cents = 15000
           ; volatility_cents_per_sec = 0.0
@@ -34,14 +34,14 @@ let oracle () =
 ;;
 
 let make_config ?(inventory_skew_cents_per_share = 1) () : Config.t =
-  { symbol = aapl
+  { symbol_id = aapl
   ; fair_value_cents = 15000
   ; half_spread_cents = 10
   ; size_per_level = 100
   ; num_levels = 3
   ; client_id_manager = Client_order_id.Generator.create ()
   ; inventory_skew_cents_per_share
-  ; inventory_counter = Symbol.Table.create ()
+  ; inventory_counter = Symbol_id.Table.create ()
   ; resting_client_order_ids = Client_order_id.Table.create ()
   }
 ;;
@@ -103,7 +103,7 @@ let fill_against (request : Order.Request.t) ~size : Exchange_event.t =
   in
   Fill
     { fill_id = 1
-    ; symbol = request.symbol
+    ; symbol_id = request.symbol_id
     ; price = request.price
     ; size
     ; aggressor_order_id = Order_id.For_testing.of_int 99
@@ -152,7 +152,7 @@ let%expect_test "a fill updates inventory, cancels the book, and re-quotes \
   in
   printf "inventory:\n";
   Hashtbl.iteri config.inventory_counter ~f:(fun ~key ~data ->
-    printf !"  %{Symbol} = %d\n" key (Size.to_int data));
+    printf !"  %{Symbol_id} = %d\n" key (Size.to_int data));
   printf "cancelled:\n";
   List.iter
     (List.sort ~compare:Client_order_id.compare !cancelled)
@@ -162,7 +162,7 @@ let%expect_test "a fill updates inventory, cancels the book, and re-quotes \
   [%expect
     {|
     inventory:
-      AAPL = 100
+      0 = 100
     cancelled:
       client-id=2
       client-id=3

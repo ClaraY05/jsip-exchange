@@ -13,12 +13,14 @@ open! Async
 open Jsip_types
 open Jsip_gateway
 
+let default_symbol_names = [ "AAPL"; "TSLA"; "GOOG"; "MSFT" ]
+
+(* Phase 1 of the symbol-as-int refactor: the wire carries [Symbol_id.t]s, so
+   the engine is created with ids [0 .. n-1], one per name in list order. main
+   keeps the names (they will seed the Phase 2 symbol directory); for now they
+   only feed the startup banner so a human knows which id is which instrument. *)
 let default_symbols =
-  [ Symbol.of_string "AAPL"
-  ; Symbol.of_string "TSLA"
-  ; Symbol.of_string "GOOG"
-  ; Symbol.of_string "MSFT"
-  ]
+  List.mapi default_symbol_names ~f:(fun i _name -> Symbol_id.of_int i)
 ;;
 
 let start ~port =
@@ -30,7 +32,9 @@ let start ~port =
       "JSIP Exchange server listening on port %{Exchange_server.port \
        server#Int}"];
   let symbols =
-    List.map default_symbols ~f:Symbol.to_string |> String.concat ~sep:", "
+    List.mapi default_symbol_names ~f:(fun i name ->
+      [%string "%{name}=%{i#Int}"])
+    |> String.concat ~sep:", "
   in
   print_endline [%string "Trading: %{symbols}"];
   Exchange_server.close_finished server
