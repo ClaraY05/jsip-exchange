@@ -6,7 +6,7 @@ module Fundamental_oracle = Jsip_fundamental.Fundamental_oracle
 module Event = struct
   type t =
     { at : Time_ns.Span.t
-    ; symbol : Symbol.t
+    ; symbol_id : Symbol_id.t
     ; delta_cents : int
     ; description : string
     }
@@ -28,14 +28,14 @@ let create oracle events =
 
 let fire t (event : Event.t) =
   printf
-    !"[news] %{Time_ns.Span} %s (%{Symbol} %+d cents)\n"
+    !"[news] %{Time_ns.Span} %s (%{Symbol_id} %+d cents)\n"
     event.at
     event.description
-    event.symbol
+    event.symbol_id
     event.delta_cents;
   Fundamental_oracle.inject_shock
     t.oracle
-    event.symbol
+    event.symbol_id
     ~delta_cents:event.delta_cents
 ;;
 

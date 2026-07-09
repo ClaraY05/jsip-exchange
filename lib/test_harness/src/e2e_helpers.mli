@@ -12,7 +12,7 @@ open Jsip_gateway
     rather than once a real second. *)
 val with_server
   :  ?metrics_interval:Time_ns.Span.t
-  -> symbols:Symbol.t list
+  -> symbols:Symbol_id.t list
   -> (server:Exchange_server.t -> port:int -> 'a Deferred.t)
   -> 'a Deferred.t
 
@@ -66,4 +66,4 @@ val rpc_submit : client -> Order.Request.t -> unit Deferred.t
 val rpc_cancel : client -> Client_order_id.t -> unit Deferred.t
 
 (** Query the book via RPC. *)
-val rpc_book : client -> Symbol.t -> Book.t option Deferred.t
+val rpc_book : client -> Symbol_id.t -> Book.t option Deferred.t

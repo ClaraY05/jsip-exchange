@@ -85,6 +85,6 @@ let rpc_cancel client client_order_id =
   >>| ok_exn
 ;;
 
-let rpc_book client symbol =
-  Rpc.Rpc.dispatch_exn Rpc_protocol.book_query_rpc client.conn symbol
+let rpc_book client symbol_id =
+  Rpc.Rpc.dispatch_exn Rpc_protocol.book_query_rpc client.conn symbol_id
 ;;

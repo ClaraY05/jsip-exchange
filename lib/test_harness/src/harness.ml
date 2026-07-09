@@ -5,9 +5,9 @@ open Jsip_gateway
 
 (* --- Constants --- *)
 
-let aapl = Symbol.of_string "AAPL"
-let tsla = Symbol.of_string "TSLA"
-let goog = Symbol.of_string "GOOG"
+let aapl = Symbol_id.of_int 0
+let tsla = Symbol_id.of_int 1
+let goog = Symbol_id.of_int 2
 let alice = Participant.of_string "Alice"
 let bob = Participant.of_string "Bob"
 let charlie = Participant.of_string "Charlie"
@@ -30,14 +30,14 @@ let make_request
   ~price_cents
   ?(size = 100)
   ?(client_id = Client_order_id.of_int 0)
-  ?(symbol = aapl)
+  ?(symbol_id = aapl)
   ?(participant = alice)
   ?(time_in_force = Time_in_force.Day)
   ()
   : Order.Request.t
   =
   { client_order_id = client_id
-  ; symbol
+  ; symbol_id
   ; participant
   ; side
   ; price = Price.of_int_cents price_cents
@@ -46,26 +46,26 @@ let make_request
   }
 ;;
 
-let buy ~price_cents ?size ?client_id ?symbol ?participant ?time_in_force () =
+let buy ~price_cents ?size ?client_id ?symbol_id ?participant ?time_in_force () =
   make_request
     ~side:Buy
     ~price_cents
     ?size
     ?client_id
-    ?symbol
+    ?symbol_id
     ?participant
     ?time_in_force
     ()
 ;;
 
-let sell ~price_cents ?size ?client_id ?symbol ?participant ?time_in_force ()
+let sell ~price_cents ?size ?client_id ?symbol_id ?participant ?time_in_force ()
   =
   make_request
     ~side:Sell
     ~price_cents
     ?size
     ?client_id
-    ?symbol
+    ?symbol_id
     ?participant
     ?time_in_force
     ()
@@ -102,7 +102,7 @@ let sample_events : Exchange_event.t list =
     { client_order_id =
         Client_order_id.of_int
           0 (* sample order_id, change for redundant order id testing *)
-    ; symbol = aapl
+    ; symbol_id = aapl
     ; participant = alice
     ; side = Buy
     ; price = Price.of_int_cents 15000
@@ -114,7 +114,7 @@ let sample_events : Exchange_event.t list =
       { order_id = Order_id.For_testing.of_int 1; request = order_request }
   ; Fill
       { fill_id = 1
-      ; symbol = aapl
+      ; symbol_id = aapl
       ; price = Price.of_int_cents 15000
       ; size = Size.of_int 100
       ; aggressor_order_id = Order_id.For_testing.of_int 2
@@ -129,13 +129,13 @@ let sample_events : Exchange_event.t list =
       { client_order_id = Client_order_id.of_int 0
       ; order_id = Order_id.For_testing.of_int 1
       ; participant = alice
-      ; symbol = aapl
+      ; symbol_id = aapl
       ; remaining_size = Size.of_int 50
       ; reason = Ioc_remainder
       }
   ; Order_reject { request = order_request; reason = "unknown symbol" }
   ; Best_bid_offer_update
-      { symbol = aapl
+      { symbol_id = aapl
       ; bbo =
           { bid =
               Some
@@ -146,7 +146,7 @@ let sample_events : Exchange_event.t list =
           }
       }
   ; Trade_report
-      { symbol = aapl
+      { symbol_id = aapl
       ; price = Price.of_int_cents 15000
       ; size = Size.of_int 100
       }
@@ -157,16 +157,16 @@ let submit_quiet_ t request =
   ignore (submit_quiet t request : Exchange_event.t list)
 ;;
 
-let print_book t symbol =
-  match Matching_engine.book t.engine symbol with
-  | None -> print_endline [%string "unknown symbol %{symbol#Symbol}"]
+let print_book t symbol_id =
+  match Matching_engine.book t.engine symbol_id with
+  | None -> print_endline [%string "unknown symbol %{symbol_id#Symbol_id}"]
   | Some book -> Order_book.snapshot book |> Book.to_string |> print_endline
 ;;
 
-let print_bbo t symbol =
-  match Matching_engine.book t.engine symbol with
-  | None -> print_endline [%string "BBO %{symbol#Symbol}: unknown symbol"]
+let print_bbo t symbol_id =
+  match Matching_engine.book t.engine symbol_id with
+  | None -> print_endline [%string "BBO %{symbol_id#Symbol_id}: unknown symbol"]
   | Some book ->
     let bbo = Order_book.best_bid_offer book |> Bbo.to_string in
-    print_endline [%string "BBO %{symbol#Symbol}: %{bbo}"]
+    print_endline [%string "BBO %{symbol_id#Symbol_id}: %{bbo}"]
 ;;
