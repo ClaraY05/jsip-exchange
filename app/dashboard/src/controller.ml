@@ -35,7 +35,7 @@ module Display = struct
       { request_queue : Series.t
       ; request_queue_latest : int option
       ; audit_queues_latest : int list
-      ; market_data_queues_latest : (Symbol.t * int list) list
+      ; market_data_queues_latest : (Symbol_id.t * int list) list
       ; session_queues_latest : (Participant.t * int) list
       }
     [@@deriving sexp_of, compare, equal]

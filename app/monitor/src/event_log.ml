@@ -93,26 +93,26 @@ type t =
   ; filter : Filter.t
   ; (* Ordered by first appearance — newest symbol last. Reorganising on
        every BBO would be visually noisy. *)
-    bbos_rev : (Symbol.t * Bbo.t) list
+    bbos_rev : (Symbol_id.t * Bbo.t) list
   }
 
 let create () = { events_rev = []; filter = Filter.all; bbos_rev = [] }
 
-let update_bbos bbos_rev symbol bbo =
+let update_bbos bbos_rev symbol_id bbo =
   let found, updated =
     List.fold_map bbos_rev ~init:false ~f:(fun found (sym, current) ->
-      if Symbol.equal sym symbol
+      if Symbol_id.equal sym symbol_id
       then true, (sym, bbo)
       else found, (sym, current))
   in
-  if found then updated else (symbol, bbo) :: bbos_rev
+  if found then updated else (symbol_id, bbo) :: bbos_rev
 ;;
 
 let add_event t event =
   let bbos_rev =
     match (event : Exchange_event.t) with
-    | Best_bid_offer_update { symbol; bbo } ->
-      update_bbos t.bbos_rev symbol bbo
+    | Best_bid_offer_update { symbol_id; bbo } ->
+      update_bbos t.bbos_rev symbol_id bbo
     | _ -> t.bbos_rev
   in
   { t with events_rev = event :: t.events_rev; bbos_rev }

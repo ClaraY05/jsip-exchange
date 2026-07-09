@@ -111,8 +111,8 @@ let latency_pane ~title (l : Display.Latency.t) =
 
 let pipe_pane (p : Display.Pipe_occupancy.t) =
   let market_data_rows =
-    List.map p.market_data_queues_latest ~f:(fun (symbol, ds) ->
-      stat ~label:[%string "  %{symbol#Symbol}"] ~value:(depths ds))
+    List.map p.market_data_queues_latest ~f:(fun (symbol_id, ds) ->
+      stat ~label:[%string "  %{symbol_id#Symbol_id}"] ~value:(depths ds))
   in
   let session_rows =
     List.map p.session_queues_latest ~f:(fun (participant, d) ->
