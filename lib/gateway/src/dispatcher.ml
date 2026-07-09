@@ -8,14 +8,16 @@ type t =
       Exchange_event.t Pipe.Writer.t Bag.t Symbol.Table.t
   ; audit_subscribers : Exchange_event.t Pipe.Writer.t Bag.t
   ; metrics_subscribers : Metrics.t Pipe.Writer.t Bag.t
-  ; mutable participants : Session.t Participant.Table.t
+  ; mutable participants : Session.t Participant_id.Table.t
+  ; registry : Participant_registry.t
   }
 
 let create () =
   { market_data_subscribers_by_symbol = Symbol.Table.create ()
   ; audit_subscribers = Bag.create ()
   ; metrics_subscribers = Bag.create ()
-  ; participants = Participant.Table.create ()
+  ; participants = Participant_id.Table.create ()
+  ; registry = Participant_registry.create ()
   }
 ;;
 
@@ -83,30 +85,37 @@ let push_metrics t metrics =
 
 let clean_up_session t session =
   let participant = Session.participant session in
-  match Hashtbl.find t.participants participant with
-  | Some _ ->
-    Hashtbl.remove t.participants participant;
-    Async.return (Session.close session)
+  match Participant_registry.id_of_name t.registry participant with
   | None -> Async.return ()
+  | Some id ->
+    (match Hashtbl.find t.participants id with
+     | Some _ ->
+       Hashtbl.remove t.participants id;
+       Async.return (Session.close session)
+     | None -> Async.return ())
 ;;
 
 let set_up_session t participant =
+  let id = Participant_registry.intern t.registry participant in
   let%bind () =
-    match Hashtbl.find t.participants participant with
+    match Hashtbl.find t.participants id with
     | None -> Async.return ()
     | Some session -> clean_up_session t session
   in
   Async.return
     (Hashtbl.add_exn
        t.participants
-       ~key:participant
+       ~key:id
        ~data:(Session.create participant))
 ;;
 
 let push_to_session t participant event =
-  match Hashtbl.find t.participants participant with
-  | Some session -> Session.push session event
+  match Participant_registry.id_of_name t.registry participant with
   | None -> ()
+  | Some id ->
+    (match Hashtbl.find t.participants id with
+     | Some session -> Session.push session event
+     | None -> ())
 ;;
 
 let dispatch_event t (event : Exchange_event.t) =
@@ -162,13 +171,23 @@ let market_data_pipe_lengths t =
 
 let session_pipe_lengths t =
   Hashtbl.to_alist t.participants
-  |> List.map ~f:(fun (participant, session) ->
-    participant, Session.outbound_length session)
+  |> List.map ~f:(fun (id, session) ->
+    (* Display edge: resolve the id back to the participant name. *)
+    Participant_registry.name t.registry id, Session.outbound_length session)
 ;;
 
 module For_testing = struct
   let audit_subscriber_count t = Bag.length t.audit_subscribers
 end
 
-let valid_participant t participant = Hashtbl.mem t.participants participant
-let get_session t participant = Hashtbl.find t.participants participant
+let valid_participant t participant =
+  match Participant_registry.id_of_name t.registry participant with
+  | None -> false
+  | Some id -> Hashtbl.mem t.participants id
+;;
+
+let get_session t participant =
+  match Participant_registry.id_of_name t.registry participant with
+  | None -> None
+  | Some id -> Hashtbl.find t.participants id
+;;

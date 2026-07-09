@@ -14,6 +14,7 @@ module Level = Level
 module Order = Order
 module Order_id = Order_id
 module Participant = Participant
+module Participant_id = Participant_id
 module Price = Price
 module Side = Side
 module Size = Size
