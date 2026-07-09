@@ -22,7 +22,7 @@ open Jsip_fundamental
 open Jsip_bot_runtime
 open Jsip_bots
 
-let aapl = Symbol.of_string "AAPL"
+let aapl = Symbol_id.of_int 0
 let alice = Participant.of_string "Alice"
 
 (* A market-data event for the slow consumer to read off the pipe. The bot
@@ -30,7 +30,7 @@ let alice = Participant.of_string "Alice"
    filler *)
 let trade_report =
   Exchange_event.Trade_report
-    { symbol = aapl; price = Price.of_int_cents 0; size = Size.of_int 0 }
+    { symbol_id = aapl; price = Price.of_int_cents 0; size = Size.of_int 0 }
 ;;
 
 (* A [Slow_consumer] bot with the given read delay. [on_event] ignores its
@@ -39,7 +39,7 @@ let trade_report =
 let make_slow_consumer ~read_delay =
   let oracle =
     Fundamental_oracle.create
-      (Symbol.Map.of_alist_exn
+      (Symbol_id.Map.of_alist_exn
          [ ( aapl
            , { Fundamental_oracle.Config.initial_price_cents = 0
              ; volatility_cents_per_sec = 0.0

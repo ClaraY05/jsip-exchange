@@ -15,7 +15,7 @@ let description =
    and over, hammering the cancel path."
 ;;
 
-let symbol = Symbol.of_string "AAPL"
+let symbol = Symbol_id.of_int 0
 let fair_value_cents = 15_000
 
 (* Deliberately no market maker or noise trader: the cancel storm cancels its
@@ -60,7 +60,7 @@ let configure () : Scenario_config.t =
       (* Flat fundamental (zero volatility, no mean reversion) so the
          scenario is calm and deterministic — the storm is the only thing
          happening. *)
-      Symbol.Map.of_alist_exn
+      Symbol_id.Map.of_alist_exn
         [ ( symbol
           , { Jsip_fundamental.Fundamental_oracle.Config.initial_price_cents =
                 fair_value_cents

@@ -47,11 +47,11 @@ let print_requests (submitted : Order.Request.t list ref) =
     Client_order_id.compare a.client_order_id b.client_order_id)
   |> List.iter ~f:(fun (req : Order.Request.t) ->
     printf
-      !"id=%{Client_order_id} %{Side} %{Symbol} %d@%{Price#dollar} \
+      !"id=%{Client_order_id} %{Side} %{Symbol_id} %d@%{Price#dollar} \
         %{Time_in_force}\n"
       req.client_order_id
       req.side
-      req.symbol
+      req.symbol_id
       (Size.to_int req.size)
       req.price
       req.time_in_force)
@@ -85,7 +85,7 @@ let make_recording_bot (config : Spammer.Config.t) =
   in
   let oracle =
     Fundamental_oracle.create
-      (Symbol.Map.of_alist_exn
+      (Symbol_id.Map.of_alist_exn
          (List.map config.symbols ~f:(fun symbol -> symbol, flat_config)))
       ~seed:42
   in
@@ -137,9 +137,9 @@ let%expect_test "one tick fires a full burst of fresh, non-marketable orders"
   [%expect
     {|
     burst size: 3
-    id=1 BUY AAPL 10@$1.00 DAY
-    id=2 BUY AAPL 10@$1.00 DAY
-    id=3 BUY AAPL 10@$1.00 DAY
+    id=1 BUY 0 10@$1.00 DAY
+    id=2 BUY 0 10@$1.00 DAY
+    id=3 BUY 0 10@$1.00 DAY
     all time_in_force = Day: true
     all priced on the passive side of fair: true
     |}];
@@ -158,10 +158,10 @@ let%expect_test "burst covers every configured symbol" =
   [%expect
     {|
     burst size: 4
-    id=1 BUY AAPL 10@$1.00 DAY
-    id=2 BUY AAPL 10@$1.00 DAY
-    id=3 BUY TSLA 10@$1.00 DAY
-    id=4 BUY TSLA 10@$1.00 DAY
+    id=1 BUY 0 10@$1.00 DAY
+    id=2 BUY 0 10@$1.00 DAY
+    id=3 BUY 1 10@$1.00 DAY
+    id=4 BUY 1 10@$1.00 DAY
     |}];
   return ()
 ;;
@@ -182,10 +182,10 @@ let%expect_test "client order IDs stay fresh across ticks" =
     (not (List.contains_dup ids ~compare:Client_order_id.compare));
   [%expect
     {|
-    id=1 BUY AAPL 10@$1.00 DAY
-    id=2 BUY AAPL 10@$1.00 DAY
-    id=3 BUY AAPL 10@$1.00 DAY
-    id=4 BUY AAPL 10@$1.00 DAY
+    id=1 BUY 0 10@$1.00 DAY
+    id=2 BUY 0 10@$1.00 DAY
+    id=3 BUY 0 10@$1.00 DAY
+    id=4 BUY 0 10@$1.00 DAY
     all ids distinct: true
     |}];
   return ()
@@ -202,7 +202,7 @@ let%expect_test "on_event is a no-op: a fill triggers no submit or cancel" =
   let fill : Exchange_event.t =
     Fill
       { fill_id = 1
-      ; symbol = Harness.aapl
+      ; symbol_id = Harness.aapl
       ; price = Price.of_int_cents 100
       ; size = Size.of_int 10
       ; aggressor_order_id = Order_id.For_testing.of_int 1

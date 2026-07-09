@@ -13,7 +13,7 @@ open Jsip_types
 open Jsip_bot_runtime
 open! Jsip_bots
 
-let aapl = Symbol.of_string "AAPL"
+let aapl = Symbol_id.of_int 0
 
 (* The fundamental the harness pins for [aapl] *)
 let fair_cents = 15000
@@ -142,7 +142,7 @@ let%expect_test "a fill against the bot is ignored: no submit, no cancel" =
   let fill : Exchange_event.t =
     Fill
       { fill_id = 1
-      ; symbol = aapl
+      ; symbol_id = aapl
       ; price = Price.of_int_cents fair_cents
       ; size = Size.of_int 10
       ; aggressor_order_id = Order_id.For_testing.of_int 1

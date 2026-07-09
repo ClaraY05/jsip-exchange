@@ -7,11 +7,11 @@ open Jsip_fundamental
 open Jsip_bot_runtime
 open! Jsip_bots
 
-let aapl = Symbol.of_string "AAPL"
+let aapl = Symbol_id.of_int 0
 let alice = Participant.of_string "Alice"
 
 let oracle_config ~initial_price_cents =
-  Symbol.Map.of_alist_exn
+  Symbol_id.Map.of_alist_exn
     [ ( aapl
       , { Fundamental_oracle.Config.initial_price_cents
         ; volatility_cents_per_sec = 0.0
@@ -61,9 +61,9 @@ let print_submitted (submitted : Order.Request.t list ref) =
   let recent = List.rev !submitted in
   List.iter recent ~f:(fun req ->
     printf
-      !"%{Side} %{Symbol} %d@%{Price#dollar} %{Time_in_force}\n"
+      !"%{Side} %{Symbol_id} %d@%{Price#dollar} %{Time_in_force}\n"
       req.side
-      req.symbol
+      req.symbol_id
       (Size.to_int req.size)
       req.price
       req.time_in_force)
@@ -94,7 +94,7 @@ let%expect_test "make_recording_bot wires up a runnable bot" =
          { order_id = Order_id.For_testing.of_int 1
          ; request =
              { client_order_id = Client_order_id.of_int 0
-             ; symbol = aapl
+             ; symbol_id = aapl
              ; participant = alice
              ; side = Buy
              ; price = Price.of_int_cents 15000

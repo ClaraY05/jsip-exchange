@@ -18,7 +18,7 @@ open Jsip_types
 
 module Config : sig
   type t =
-    { symbols : Symbol.t list
+    { symbols : Symbol_id.t list
     (** Symbols the bot piles orders on. It submits [orders_per_tick] orders
         for each symbol every tick. *)
     ; orders_per_tick : int

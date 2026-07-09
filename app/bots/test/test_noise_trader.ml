@@ -19,7 +19,7 @@ open Jsip_types
 open Jsip_bot_runtime
 open! Jsip_bots
 
-let aapl = Symbol.of_string "AAPL"
+let aapl = Symbol_id.of_int 0
 
 (* The fundamental the harness pins for [aapl]. With the BBO cache empty
    (nothing has fed a [Best_bid_offer_update]), [choose_price] falls back to

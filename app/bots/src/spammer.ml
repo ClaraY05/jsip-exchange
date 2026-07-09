@@ -5,7 +5,7 @@ module Context = Jsip_bot_runtime.Bot_runtime.Context
 
 module Config = struct
   type t =
-    { symbols : Symbol.t list
+    { symbols : Symbol_id.t list
     ; orders_per_tick : int
     ; order_size : int
     ; passive_offset_cents : int
@@ -60,7 +60,7 @@ let make_request
   : Order.Request.t
   =
   { client_order_id
-  ; symbol
+  ; symbol_id = symbol
   ; side = config.side
   ; price
   ; participant = Context.participant context

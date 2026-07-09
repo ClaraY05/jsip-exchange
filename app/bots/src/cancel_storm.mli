@@ -40,7 +40,7 @@ module Config : sig
       Raises if [symbols] is empty or either of [cycles_per_tick] /
       [order_size] is non-positive. *)
   val create
-    :  symbols:Symbol.t list
+    :  symbols:Symbol_id.t list
     -> cycles_per_tick:int
     -> order_size:int
     -> price_offset_cents:int

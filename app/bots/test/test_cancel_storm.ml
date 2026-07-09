@@ -15,7 +15,7 @@ open Jsip_types
 open Jsip_bot_runtime
 open! Jsip_bots
 
-let aapl = Symbol.of_string "AAPL"
+let aapl = Symbol_id.of_int 0
 
 (* Print one line per submitted order (client order id, side, price, size,
    time-in-force) followed by the cancelled ids in submission order, so the

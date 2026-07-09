@@ -12,7 +12,7 @@ let description =
 
 (* The single symbol this scenario trades. Drives the exchange's known
    symbols, the oracle's price process, and the symbols both bots target. *)
-let symbols = [ Symbol.of_string "AAPL" ]
+let symbols = [ Symbol_id.of_int 0 ]
 
 (* Where the fundamental sits and how it moves. "Calm" means modest
    volatility and a gentle pull back toward the mean, per the exercise spec:
@@ -22,7 +22,7 @@ let symbols = [ Symbol.of_string "AAPL" ]
 let initial_price_cents = 15000
 
 let oracle_config : Fundamental_oracle.Config.t =
-  Symbol.Map.of_alist_exn
+  Symbol_id.Map.of_alist_exn
     (List.map symbols ~f:(fun symbol ->
        ( symbol
        , ({ initial_price_cents
@@ -35,14 +35,14 @@ let oracle_config : Fundamental_oracle.Config.t =
 
 let market_maker_spec () : Bot_spec.t =
   let config : Jsip_market_maker.Market_maker.Config.t =
-    { symbol = List.hd_exn symbols
+    { symbol_id = List.hd_exn symbols
     ; fair_value_cents = initial_price_cents
     ; half_spread_cents = 5
     ; size_per_level = 100
     ; num_levels = 5
     ; client_id_manager = Client_order_id.Generator.create ()
     ; inventory_skew_cents_per_share = 1
-    ; inventory_counter = Symbol.Table.create ()
+    ; inventory_counter = Symbol_id.Table.create ()
     ; resting_client_order_ids = Client_order_id.Table.create ()
     }
   in

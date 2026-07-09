@@ -10,7 +10,7 @@ let description =
    orders every tick."
 ;;
 
-let symbol = Symbol.of_string "AAPL"
+let symbol = Symbol_id.of_int 0
 let fundamental_price_cents = 15_000
 
 (* A large passive offset: every (buy) order rests deep below the fundamental
@@ -36,7 +36,7 @@ let orders_per_tick = 300
 let tick_interval = Time_ns.Span.of_sec 0.1
 
 let oracle_config : Jsip_fundamental.Fundamental_oracle.Config.t =
-  Symbol.Map.of_alist_exn
+  Symbol_id.Map.of_alist_exn
     [ ( symbol
       , { Jsip_fundamental.Fundamental_oracle.Config.initial_price_cents =
             fundamental_price_cents

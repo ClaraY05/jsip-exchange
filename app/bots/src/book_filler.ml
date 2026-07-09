@@ -5,7 +5,7 @@ module Context = Jsip_bot_runtime.Bot_runtime.Context
 
 module Config = struct
   type t =
-    { symbols : Symbol.t list
+    { symbols : Symbol_id.t list
     ; orders_per_tick : int
     ; order_size : int
     ; min_offset : int
@@ -34,7 +34,7 @@ let on_tick (config : Config.t) (context : Context.t) : unit Deferred.t =
     let request =
       ({ client_order_id = Client_order_id.of_int config.next_client_id
        ; participant = Context.participant context
-       ; symbol
+       ; symbol_id = symbol
        ; side
        ; price
        ; size

@@ -17,14 +17,14 @@ let description =
    - the exchange's known symbols
    - the oracle's price process
    - the symbols the book filler targets *)
-let symbols = [ Symbol.of_string "AAPL" ]
+let symbols = [ Symbol_id.of_int 0 ]
 
 (* fundamental: higher volatility to create drifting fair value and new posts
    for best bid and best ask via the book filler, which is what generates the
    steady stream of [Best_bid_offer_update] market-data events the consumers
    fall behind on. *)
 let oracle_config : Fundamental_oracle.Config.t =
-  Symbol.Map.of_alist_exn
+  Symbol_id.Map.of_alist_exn
     (List.map symbols ~f:(fun symbol ->
        ( symbol
        , ({ initial_price_cents = 15000

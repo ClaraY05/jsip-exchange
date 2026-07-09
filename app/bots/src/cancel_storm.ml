@@ -8,7 +8,7 @@ module Context = Jsip_bot_runtime.Bot_runtime.Context
 
 module Config = struct
   type t =
-    { symbols : Symbol.t list (* stocks to churn on *)
+    { symbols : Symbol_id.t list (* stocks to churn on *)
     ; cycles_per_tick : int (* submit+cancel pairs run per tick *)
     ; order_size : int (* shares on each order *)
     ; price_offset_cents : int (* distance from the fundamental to rest at *)
@@ -88,7 +88,7 @@ let run_cycle (config : Config.t) context =
   in
   let request : Order.Request.t =
     { client_order_id
-    ; symbol
+    ; symbol_id = symbol
     ; side
     ; price
     ; participant = Context.participant context

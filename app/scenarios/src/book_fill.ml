@@ -15,12 +15,12 @@ let description =
    - the exchange's known symbols
    - the oracle's price process
    - the symbols the book filler targets *)
-let symbols = [ Symbol.of_string "AAPL" ]
+let symbols = [ Symbol_id.of_int 0 ]
 
 (* Fair-value process the book filler prices against. One entry per symbol.
    Tune these to change where the fundamental sits and how much it drifts. *)
 let oracle_config : Fundamental_oracle.Config.t =
-  Symbol.Map.of_alist_exn
+  Symbol_id.Map.of_alist_exn
     (List.map symbols ~f:(fun symbol ->
        ( symbol
        , ({ initial_price_cents = 15000

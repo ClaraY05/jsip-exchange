@@ -26,7 +26,7 @@ open Jsip_bot_runtime
 
 module Config : sig
   type t =
-    { symbols : Symbol.t list
+    { symbols : Symbol_id.t list
     (** Symbols the burst is spread across; each tick fires [orders_per_tick]
         orders for every symbol in this list. *)
     ; orders_per_tick : int

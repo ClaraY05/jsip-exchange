@@ -44,7 +44,7 @@ module Config : sig
       field getters. [next_client_id] starts at [0] and the BBO cache starts
       empty — neither is a caller concern. *)
   val create
-    :  symbols:Symbol.t list
+    :  symbols:Symbol_id.t list
          (** Symbols the bot trades. Each tick it picks one uniformly at
              random and submits a single order for it; an empty list makes
              the bot inert. *)

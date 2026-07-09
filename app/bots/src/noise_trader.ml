@@ -14,13 +14,13 @@ end
 
 module Config = struct
   type t =
-    { symbols : Symbol.t list
+    { symbols : Symbol_id.t list
     ; mean_size : int
     ; size_spread_fraction : float
     ; tick_chance : Percent.t
     ; aggressiveness_pct : Percent.t
     ; ioc_pct : Percent.t
-    ; bbo_cache : Bbo.t Symbol.Table.t
+    ; bbo_cache : Bbo.t Symbol_id.Table.t
     ; mutable next_client_id : int
     }
   [@@deriving sexp_of]
@@ -39,7 +39,7 @@ module Config = struct
     ; tick_chance
     ; aggressiveness_pct
     ; ioc_pct
-    ; bbo_cache = Symbol.Table.create ()
+    ; bbo_cache = Symbol_id.Table.create ()
     ; next_client_id = 0
     }
   ;;
@@ -145,7 +145,7 @@ let on_tick (config : Config.t) (context : Context.t) : unit Deferred.t =
     let request =
       ({ client_order_id = Client_order_id.of_int config.next_client_id
        ; participant = Context.participant context
-       ; symbol
+       ; symbol_id = symbol
        ; side
        ; price
        ; size
@@ -167,8 +167,8 @@ let on_event
   : unit Deferred.t
   =
   match event with
-  | Best_bid_offer_update { symbol; bbo } ->
-    Hashtbl.set config.bbo_cache ~key:symbol ~data:bbo;
+  | Best_bid_offer_update { symbol_id; bbo } ->
+    Hashtbl.set config.bbo_cache ~key:symbol_id ~data:bbo;
     Deferred.unit
   | Order_accept _ | Fill _ | Order_cancel _ | Order_reject _
   | Trade_report _ | Cancel_reject _ ->
