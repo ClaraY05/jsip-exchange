@@ -52,7 +52,7 @@ let%expect_test "metrics: Pipe_occupancy sexp" =
   print_s [%sexp (occupancy : Metrics.Pipe_occupancy.t)];
   [%expect
     {|
-    ((request_queue 3) (audit (0 12)) (market_data ((AAPL (0 5))))
+    ((request_queue 3) (audit (0 12)) (market_data ((0 (0 5))))
      (sessions ((Alice 0) (Bob 40))))
     |}]
 ;;

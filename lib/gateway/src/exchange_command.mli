@@ -8,8 +8,8 @@ open Jsip_types
 
 type t =
   | Submit of Order.Request.t
-  | Book of Symbol.t
-  | Subscribe of Symbol.t
+  | Book of Symbol_id.t
+  | Subscribe of Symbol_id.t
   | Cancel of Client_order_id.t
 
 type verb =

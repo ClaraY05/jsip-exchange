@@ -20,7 +20,7 @@ type t
     second. *)
 val start
   :  ?metrics_interval:Time_ns.Span.t
-  -> symbols:Symbol.t list
+  -> symbols:Symbol_id.t list
   -> port:int
   -> unit
   -> t Deferred.t

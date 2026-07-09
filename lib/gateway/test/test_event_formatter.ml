@@ -14,7 +14,7 @@ let%expect_test "format_event: all event types" =
         { order_id = Order_id.of_string "1"
         ; request =
             { client_order_id = Client_order_id.of_int 0
-            ; symbol = Symbol.of_string "AAPL"
+            ; symbol_id = Symbol_id.of_int 0
             ; participant = Participant.of_string "Alice"
             ; side = Buy
             ; price = Price.of_int_cents 15000
@@ -24,7 +24,7 @@ let%expect_test "format_event: all event types" =
         }
     ; Fill
         { fill_id = 1
-        ; symbol = Symbol.of_string "AAPL"
+        ; symbol_id = Symbol_id.of_int 0
         ; price = Price.of_int_cents 15000
         ; size = Size.of_int 100
         ; aggressor_order_id = Order_id.of_string "2"
@@ -39,14 +39,14 @@ let%expect_test "format_event: all event types" =
         { client_order_id = Client_order_id.of_int 0
         ; order_id = Order_id.of_string "3"
         ; participant = Participant.of_string "Charlie"
-        ; symbol = Symbol.of_string "TSLA"
+        ; symbol_id = Symbol_id.of_int 1
         ; remaining_size = Size.of_int 50
         ; reason = Ioc_remainder
         }
     ; Order_reject
         { request =
             { client_order_id = Client_order_id.of_int 0
-            ; symbol = Symbol.of_string "GOOG"
+            ; symbol_id = Symbol_id.of_int 2
             ; participant = Participant.of_string "Alice"
             ; side = Sell
             ; price = Price.of_int_cents 28000
@@ -56,7 +56,7 @@ let%expect_test "format_event: all event types" =
         ; reason = "unknown symbol"
         }
     ; Best_bid_offer_update
-        { symbol = Symbol.of_string "AAPL"
+        { symbol_id = Symbol_id.of_int 0
         ; bbo =
             { bid =
                 Some
@@ -71,9 +71,9 @@ let%expect_test "format_event: all event types" =
             }
         }
     ; Best_bid_offer_update
-        { symbol = Symbol.of_string "AAPL"; bbo = Bbo.empty }
+        { symbol_id = Symbol_id.of_int 0; bbo = Bbo.empty }
     ; Trade_report
-        { symbol = Symbol.of_string "AAPL"
+        { symbol_id = Symbol_id.of_int 0
         ; price = Price.of_int_cents 15000
         ; size = Size.of_int 100
         }
@@ -83,12 +83,12 @@ let%expect_test "format_event: all event types" =
     print_endline (Event_formatter.format_event e));
   [%expect
     {|
-    ACCEPTED client-id=0 id=1 AAPL BUY 100@$150.00 DAY
-    FILL fill_id=1 AAPL $150.00 x100 aggressor=2 (client-id=0) (Alice) BUY resting=1 (client-id=0) (Bob)
-    CANCELLED client_id=0 id=3 TSLA remaining=50 reason=IOC_REMAINDER
-    REJECTED client-id=0 GOOG SELL 10@$280.00 reason=unknown symbol
-    BBO AAPL bid=$149.90 x200 ask=$150.10 x100
-    BBO AAPL bid=- ask=-
-    TRADE AAPL $150.00 x100
+    ACCEPTED client-id=0 id=1 0 BUY 100@$150.00 DAY
+    FILL fill_id=1 0 $150.00 x100 aggressor=2 (client-id=0) (Alice) BUY resting=1 (client-id=0) (Bob)
+    CANCELLED client_id=0 id=3 1 remaining=50 reason=IOC_REMAINDER
+    REJECTED client-id=0 2 SELL 10@$280.00 reason=unknown symbol
+    BBO 0 bid=$149.90 x200 ask=$150.10 x100
+    BBO 0 bid=- ask=-
+    TRADE 0 $150.00 x100
     |}]
 ;;

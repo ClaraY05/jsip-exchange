@@ -7,7 +7,7 @@ let format_event = function
       "ACCEPTED client-id=%s id=%s %s %s %d@%s %s"
       (Client_order_id.to_string request.client_order_id)
       (Order_id.to_string order_id)
-      (Symbol.to_string request.symbol)
+      (Symbol_id.to_string request.symbol_id)
       (Side.to_string request.side)
       (Size.to_int request.size)
       (Price.to_string_dollar request.price)
@@ -17,7 +17,7 @@ let format_event = function
       { client_order_id
       ; order_id
       ; participant = _
-      ; symbol
+      ; symbol_id
       ; remaining_size
       ; reason
       } ->
@@ -25,25 +25,25 @@ let format_event = function
       "CANCELLED client_id=%s id=%s %s remaining=%d reason=%s"
       (Client_order_id.to_string client_order_id)
       (Order_id.to_string order_id)
-      (Symbol.to_string symbol)
+      (Symbol_id.to_string symbol_id)
       (Size.to_int remaining_size)
       (Cancel_reason.to_string reason)
   | Order_reject { request; reason } ->
     sprintf
       "REJECTED client-id=%s %s %s %d@%s reason=%s"
       (Client_order_id.to_string request.client_order_id)
-      (Symbol.to_string request.symbol)
+      (Symbol_id.to_string request.symbol_id)
       (Side.to_string request.side)
       (Size.to_int request.size)
       (Price.to_string_dollar request.price)
       reason
-  | Best_bid_offer_update { symbol; bbo } ->
+  | Best_bid_offer_update { symbol_id; bbo } ->
     let bid = Level.opt_to_string bbo.bid in
     let ask = Level.opt_to_string bbo.ask in
-    [%string "BBO %{symbol#Symbol} bid=%{bid} ask=%{ask}"]
-  | Trade_report { symbol; price; size } ->
+    [%string "BBO %{symbol_id#Symbol_id} bid=%{bid} ask=%{ask}"]
+  | Trade_report { symbol_id; price; size } ->
     let size = Size.to_int size in
-    [%string "TRADE %{symbol#Symbol} %{price#Price} x%{size#Int}"]
+    [%string "TRADE %{symbol_id#Symbol_id} %{price#Price} x%{size#Int}"]
   | Cancel_reject { participant; client_order_id; reason } ->
     sprintf
       "REJECTED Cancel Request client-id:%s (%s) reason=%s"

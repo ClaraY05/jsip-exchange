@@ -2,7 +2,7 @@
 
     Owns subscription registries:
 
-    - **Market-data subscribers**, keyed by [Symbol.t]. Each subscriber gets
+    - **Market-data subscribers**, keyed by [Symbol_id.t]. Each subscriber gets
       a pipe of [Best_bid_offer_update] and [Trade_report] events for the
       symbol they asked about. This is the public market-data feed.
 
@@ -35,7 +35,7 @@ val create : unit -> t
     closed. *)
 val subscribe_market_data
   :  t
-  -> Symbol.t list
+  -> Symbol_id.t list
   -> Exchange_event.t Pipe.Reader.t
 
 (** Subscribe to the full unfiltered event firehose. Intended for the monitor
@@ -79,7 +79,7 @@ val audit_pipe_lengths : t -> int list
 (** Current buffered length of each market-data subscriber pipe, grouped by
     the symbol whose bag they are in. A subscriber to several symbols
     contributes to several groups. *)
-val market_data_pipe_lengths : t -> (Symbol.t * int list) list
+val market_data_pipe_lengths : t -> (Symbol_id.t * int list) list
 
 (** Current outbound-pipe length of each logged-in session, keyed by
     participant. *)

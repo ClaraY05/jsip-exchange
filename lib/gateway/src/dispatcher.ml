@@ -5,7 +5,7 @@ module Metrics = Jsip_gateway_protocol.Metrics
 
 type t =
   { market_data_subscribers_by_symbol :
-      Exchange_event.t Pipe.Writer.t Bag.t Symbol.Table.t
+      Exchange_event.t Pipe.Writer.t Bag.t Symbol_id.Table.t
   ; audit_subscribers : Exchange_event.t Pipe.Writer.t Bag.t
   ; metrics_subscribers : Metrics.t Pipe.Writer.t Bag.t
   ; mutable participants : Session.t Participant_id.Table.t
@@ -13,7 +13,7 @@ type t =
   }
 
 let create () =
-  { market_data_subscribers_by_symbol = Symbol.Table.create ()
+  { market_data_subscribers_by_symbol = Symbol_id.Table.create ()
   ; audit_subscribers = Bag.create ()
   ; metrics_subscribers = Bag.create ()
   ; participants = Participant_id.Table.create ()
@@ -28,19 +28,19 @@ let subscribe_market_data t symbols =
      receives each event exactly once — only via whichever bag matches the
      event's symbol. *)
   let elts =
-    List.map symbols ~f:(fun symbol ->
+    List.map symbols ~f:(fun symbol_id ->
       let subscribers =
         Hashtbl.find_or_add
           t.market_data_subscribers_by_symbol
           ~default:Bag.create
-          symbol
+          symbol_id
       in
-      symbol, Bag.add subscribers writer)
+      symbol_id, Bag.add subscribers writer)
   in
   don't_wait_for
     (let%map () = Pipe.closed writer in
-     List.iter elts ~f:(fun (symbol, elt) ->
-       match Hashtbl.find t.market_data_subscribers_by_symbol symbol with
+     List.iter elts ~f:(fun (symbol_id, elt) ->
+       match Hashtbl.find t.market_data_subscribers_by_symbol symbol_id with
        | None -> ()
        | Some subscribers -> Bag.remove subscribers elt));
   reader
@@ -55,8 +55,8 @@ let subscribe_audit t =
   reader
 ;;
 
-let push_market_data t event symbol =
-  match Hashtbl.find t.market_data_subscribers_by_symbol symbol with
+let push_market_data t event symbol_id =
+  match Hashtbl.find t.market_data_subscribers_by_symbol symbol_id with
   | None -> ()
   | Some subscribers ->
     Bag.iter subscribers ~f:(fun writer ->
@@ -121,10 +121,10 @@ let push_to_session t participant event =
 let dispatch_event t (event : Exchange_event.t) =
   push_audit t event;
   match event with
-  | Best_bid_offer_update { symbol; bbo = _ } ->
-    push_market_data t event symbol
-  | Trade_report { symbol; price = _; size = _ } ->
-    push_market_data t event symbol
+  | Best_bid_offer_update { symbol_id; bbo = _ } ->
+    push_market_data t event symbol_id
+  | Trade_report { symbol_id; price = _; size = _ } ->
+    push_market_data t event symbol_id
   | Order_accept { order_id = _; request }
   | Order_reject { request; reason = _ } ->
     push_to_session t request.participant event
@@ -134,14 +134,14 @@ let dispatch_event t (event : Exchange_event.t) =
       { client_order_id = _
       ; order_id = _
       ; participant
-      ; symbol = _
+      ; symbol_id = _
       ; remaining_size = _
       ; reason = _
       } ->
     push_to_session t participant event
   | Fill
       { fill_id = _
-      ; symbol = _
+      ; symbol_id = _
       ; price = _
       ; size = _
       ; aggressor_order_id = _
@@ -165,8 +165,8 @@ let audit_pipe_lengths t =
 
 let market_data_pipe_lengths t =
   Hashtbl.to_alist t.market_data_subscribers_by_symbol
-  |> List.map ~f:(fun (symbol, subscribers) ->
-    symbol, Bag.to_list subscribers |> List.map ~f:Pipe.length)
+  |> List.map ~f:(fun (symbol_id, subscribers) ->
+    symbol_id, Bag.to_list subscribers |> List.map ~f:Pipe.length)
 ;;
 
 let session_pipe_lengths t =

@@ -55,7 +55,7 @@ module Pipe_occupancy : sig
   type t =
     { request_queue : int
     ; audit : int list
-    ; market_data : (Symbol.t * int list) list
+    ; market_data : (Symbol_id.t * int list) list
     ; sessions : (Participant.t * int) list
     }
   [@@deriving sexp, bin_io]

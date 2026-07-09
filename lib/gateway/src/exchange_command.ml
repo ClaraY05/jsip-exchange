@@ -3,8 +3,8 @@ open Jsip_types
 
 type t =
   | Submit of Order.Request.t
-  | Book of Symbol.t
-  | Subscribe of Symbol.t
+  | Book of Symbol_id.t
+  | Subscribe of Symbol_id.t
   | Cancel of Client_order_id.t
 
 type verb =
@@ -69,13 +69,14 @@ let parse ?default_participant:participant line =
                     Or_error.error_string
                       [%string "invalid price: %{price_str}\nexception: %{exn_str}"]
                 in
-                let%bind symbol =
-                  try Ok (Symbol.of_string symbol_str) with
-                  | exn ->
-                    let exn_str = Exn.to_string exn in
+                let%bind symbol_id =
+                  match Int.of_string_opt symbol_str with
+                  | Some n -> Ok (Symbol_id.of_int n)
+                  | None ->
                     Or_error.error_string
                       [%string
-                        "invalid symbol: %{symbol_str}\nexception: %{exn_str}"]
+                        "invalid symbol id: %{symbol_str} (expected an \
+                         integer)"]
                 in
                 let%bind time_in_force, rest =
                   match rest with
@@ -103,9 +104,9 @@ let parse ?default_participant:participant line =
                     Or_error.error_string [%string "unexpected trailing arguments: %{trailing}"]
                 in
                 Ok
-                   (Submit 
+                   (Submit
                    ({ client_order_id = Client_order_id.of_int client_order_id
-                    ; symbol
+                    ; symbol_id
                     ; participant
                     ; side
                     ; price
@@ -113,27 +114,27 @@ let parse ?default_participant:participant line =
                     ; time_in_force
                     }: Order.Request.t))
             | _ -> Or_error.error_string
-                [%string "expected: BUY|SELL <client_id> <symbol> <size> <price> [ %{Time_in_force.all_str}] [as <name>]"]
+                [%string "expected: BUY|SELL <client_id> <symbol_id> <size> <price> [ %{Time_in_force.all_str}] [as <name>]"]
             )
           
         | Book | Subscribe ->(
-          match remaining_arguments with 
+          match remaining_arguments with
           | symbol_str::_ ->
-              let%bind symbol =
-                try Ok (Symbol.of_string symbol_str) with
-                | exn ->
-                let exn_str = Exn.to_string exn in
-                Or_error.error_string
-                  [%string
-                  "invalid symbol: %{symbol_str}\nexception: %{exn_str}"]
+              let%bind symbol_id =
+                match Int.of_string_opt symbol_str with
+                | Some n -> Ok (Symbol_id.of_int n)
+                | None ->
+                  Or_error.error_string
+                    [%string
+                      "invalid symbol id: %{symbol_str} (expected an integer)"]
               in
-              (match command with 
-                | Book -> Ok (Book symbol : t)
-                | Subscribe -> Ok (Subscribe symbol)
+              (match command with
+                | Book -> Ok (Book symbol_id : t)
+                | Subscribe -> Ok (Subscribe symbol_id)
                 | _ -> Or_error.error_string "UNEXPECTED ERROR: should be caught by earlier errors")
           | [] ->
               Or_error.error_string
-                "expected: BOOK|SUBSCRIBE <symbol>"
+                "expected: BOOK|SUBSCRIBE <symbol_id>"
         )
         | Cancel -> (
           match remaining_arguments with 
