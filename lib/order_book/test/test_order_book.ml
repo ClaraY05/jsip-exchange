@@ -14,7 +14,7 @@ let make_order
   =
   Order.create
     ({ client_order_id = client_id
-     ; symbol = Harness.aapl
+     ; symbol_id = Harness.aapl
      ; participant
      ; side
      ; price = Price.of_int_cents price_cents
@@ -274,7 +274,7 @@ let%expect_test "snapshot lists levels in price-time priority order" =
      bids should appear highest-first and asks lowest-first. *)
   [%expect
     {|
-    === AAPL ===
+    === 0 ===
       BIDS:
         $150.00 x100
         $149.95 x100

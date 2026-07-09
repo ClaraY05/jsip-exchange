@@ -13,26 +13,17 @@ module Participant_client_order_ids = struct
 end
 
 module Symbol_registry = struct
-  type t =
-    { books : Order_book.t Array.t
-    ; symbol_indexes : int Symbol.Table.t
-    }
-  [@@deriving sexp_of]
+  type t = { books : Order_book.t Array.t } [@@deriving sexp_of]
 
   let create symbols : t =
-    { books =
-        Array.of_list
-          (List.map symbols ~f:(fun symbol -> Order_book.create symbol))
-    ; symbol_indexes =
-        Symbol.Table.of_alist_exn
-          (List.mapi symbols ~f:(fun i symbol -> symbol, i))
-    }
+    { books = Array.of_list (List.map symbols ~f:Order_book.create) }
   ;;
 
-  let book t symbol =
-    match Hashtbl.find t.symbol_indexes symbol with
-    | None -> None
-    | Some index -> Some t.books.(index)
+  let book t (symbol_id : Symbol_id.t) : Order_book.t option =
+    let symbol_id_int = Symbol_id.to_int symbol_id in
+    match symbol_id_int < 0 || symbol_id_int > Array.length t.books with
+    | true -> None
+    | false -> Some t.books.(symbol_id_int)
   ;;
 end
 
@@ -60,7 +51,7 @@ let check_client_order_id t participant client_order_id =
     ({ participant; client_order_id } : Participant_client_order_ids.t)
 ;;
 
-let book t symbol = Symbol_registry.book t.book_registry symbol
+let book t symbol_id = Symbol_registry.book t.book_registry symbol_id
 
 (* remove an order *)
 let cancel t participant client_order_id =
@@ -70,7 +61,7 @@ let cancel t participant client_order_id =
         { participant; client_order_id; reason = "Order does not exist" }
     ]
   | Some order ->
-    (match book t (Order.symbol order) with
+    (match book t (Order.symbol_id order) with
      | None ->
        [ Exchange_event.Cancel_reject
            { participant; client_order_id; reason = "Order does not exist" }
@@ -87,7 +78,7 @@ let cancel t participant client_order_id =
            { client_order_id = Order.client_order_id order
            ; order_id = Order.order_id order
            ; participant = Order.participant order
-           ; symbol = Order.symbol order
+           ; symbol_id = Order.symbol_id order
            ; remaining_size = Order.size order
            ; reason = Cancel_reason.Participant_requested
            }
@@ -97,7 +88,7 @@ let cancel t participant client_order_id =
          then []
          else
            [ Exchange_event.Best_bid_offer_update
-               { symbol = Order.symbol order; bbo = bbo_after }
+               { symbol_id = Order.symbol_id order; bbo = bbo_after }
            ]
        in
        List.concat [ [ order_cancel ]; bbo_events ])
@@ -123,7 +114,7 @@ let rec match_loop ~book ~order ~fill_id =
       let fill_event =
         Exchange_event.Fill
           { fill_id
-          ; symbol = Order.symbol order
+          ; symbol_id = Order.symbol_id order
           ; price = Order.price resting
           ; size = fill_size
           ; aggressor_order_id = Order.order_id order
@@ -137,7 +128,7 @@ let rec match_loop ~book ~order ~fill_id =
       in
       let trade_event =
         Exchange_event.Trade_report
-          { symbol = Order.symbol order
+          { symbol_id = Order.symbol_id order
           ; price = Order.price resting
           ; size = fill_size
           }
@@ -149,7 +140,7 @@ let rec match_loop ~book ~order ~fill_id =
 ;;
 
 let submit t (request : Order.Request.t) =
-  match Symbol_registry.book t.book_registry request.symbol with
+  match Symbol_registry.book t.book_registry request.symbol_id with
   | None ->
     [ Exchange_event.Order_reject { request; reason = "unknown symbol" } ]
   | Some book ->
@@ -182,7 +173,7 @@ let submit t (request : Order.Request.t) =
               { client_order_id = request.client_order_id
               ; order_id
               ; participant = Order.participant order
-              ; symbol = Order.symbol order
+              ; symbol_id = Order.symbol_id order
               ; remaining_size = Order.remaining_size order
               ; reason = Ioc_remainder
               }
@@ -196,7 +187,7 @@ let submit t (request : Order.Request.t) =
       then []
       else
         [ Exchange_event.Best_bid_offer_update
-            { symbol = Order.symbol order; bbo = bbo_after }
+            { symbol_id = Order.symbol_id order; bbo = bbo_after }
         ]
     in
     List.concat [ [ accepted ]; fill_events; post_events; bbo_events ]

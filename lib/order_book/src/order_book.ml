@@ -12,22 +12,22 @@ module Price_id_key = struct
 end
 
 type t =
-  { symbol : Symbol.t
+  { symbol_id : Symbol_id.t
   ; mutable bids : Order.t Price_id_key.Map.t
   ; mutable asks : Order.t Price_id_key.Map.t
   ; mutable reverse_index : Price_id_key.t Order_id.Map.t
   }
 [@@deriving sexp_of]
 
-let create symbol =
-  { symbol
+let create symbol_id =
+  { symbol_id
   ; bids = Price_id_key.Map.empty
   ; asks = Price_id_key.Map.empty
   ; reverse_index = Order_id.Map.empty
   }
 ;;
 
-let symbol t = t.symbol
+let symbol_id t = t.symbol_id
 
 let side_map t side =
   match (side : Side.t) with Buy -> t.bids | Sell -> t.asks
@@ -174,7 +174,7 @@ let snapshot_side t (side : Side.t) =
 ;;
 
 let snapshot t =
-  { Book.symbol = symbol t
+  { Book.symbol_id = symbol_id t
   ; bids = snapshot_side t Buy
   ; asks = snapshot_side t Sell
   ; bbo = best_bid_offer t

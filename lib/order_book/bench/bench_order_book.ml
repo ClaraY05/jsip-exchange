@@ -41,7 +41,7 @@ open Jsip_order_book
 (* Setup helpers *)
 (* ---------------------------------------------------------------- *)
 
-let aapl = Symbol.of_string "AAPL"
+let aapl = Symbol_id.of_int 0
 let alice = Participant.of_string "Alice"
 let bob = Participant.of_string "Bob"
 
@@ -71,7 +71,7 @@ let book_with_n_asks ?(min_price = 10_000) ?(is_same = false) n =
         { client_order_id =
             Client_order_id.of_int
               (Client_order_id.Generator.next client_gen)
-        ; symbol = aapl
+        ; symbol_id = aapl
         ; participant = bob
         ; side = Sell
         ; price = Price.of_int_cents price
@@ -95,7 +95,7 @@ let engine_with_n_asks ?(min_price = 10_000) n =
          { client_order_id =
              Client_order_id.of_int
                (Client_order_id.Generator.next client_gen)
-         ; symbol = aapl
+         ; symbol_id = aapl
          ; participant = bob
          ; side = Sell
          ; price = Price.of_int_cents (min_price + i)
@@ -115,7 +115,7 @@ let engine_with_n_asks ?(min_price = 10_000) n =
     engine and the symbol list so a caller can pick one to look up. *)
 let engine_with_n_symbols n =
   let symbols =
-    List.init n ~f:(fun i -> Symbol.of_string [%string "SYM%{i#Int}"])
+    List.init n ~f:Symbol_id.of_int
   in
   Matching_engine.create symbols, symbols
 ;;
@@ -132,7 +132,7 @@ let bench_find_match ~n =
     Order.create
       { client_order_id =
           Client_order_id.of_int (Client_order_id.Generator.next client_gen)
-      ; symbol = aapl
+      ; symbol_id = aapl
       ; participant = alice
       ; side = Buy
       ; price = Price.of_int_cents (min_price + n)
@@ -153,7 +153,7 @@ let bench_find_match_no_cross ~n =
     Order.create
       { client_order_id =
           Client_order_id.of_int (Client_order_id.Generator.next client_gen)
-      ; symbol = aapl
+      ; symbol_id = aapl
       ; participant = alice
       ; side = Buy
       ; price = Price.of_int_cents (min_price - 1)
@@ -180,7 +180,7 @@ let bench_add_remove ~n =
     Order.create
       { client_order_id =
           Client_order_id.of_int (Client_order_id.Generator.next client_gen)
-      ; symbol = aapl
+      ; symbol_id = aapl
       ; participant = alice
       ; side = Sell
       ; price = Price.of_int_cents (min_price + 500)
@@ -255,7 +255,7 @@ let bench_submit_ioc_cross ~n =
            { client_order_id =
                Client_order_id.of_int
                  (Client_order_id.Generator.next client_gen)
-           ; symbol = aapl
+           ; symbol_id = aapl
            ; participant = alice
            ; side = Buy
            ; price = Price.of_int_cents max_price
@@ -271,7 +271,7 @@ let bench_submit_ioc_cross ~n =
             { client_order_id =
                 Client_order_id.of_int
                   (Client_order_id.Generator.next client_gen)
-            ; symbol = aapl
+            ; symbol_id = aapl
             ; participant = bob
             ; side = Sell
             ; price = Price.of_int_cents !next_price
@@ -293,7 +293,7 @@ let bench_submit_ioc_no_match ~n =
          { client_order_id =
              Client_order_id.of_int
                (Client_order_id.Generator.next client_gen)
-         ; symbol = aapl
+         ; symbol_id = aapl
          ; participant = alice
          ; side = Buy
          ; price = Price.of_int_cents (min_price - 1)
@@ -315,7 +315,7 @@ let bench_submit_sweep ~n =
          { client_order_id =
              Client_order_id.of_int
                (Client_order_id.Generator.next client_gen)
-         ; symbol = aapl
+         ; symbol_id = aapl
          ; participant = alice
          ; side = Buy
          ; price = Price.of_int_cents 99_999
@@ -338,7 +338,7 @@ let bench_find_match_alloc ~n =
     Order.create
       { client_order_id =
           Client_order_id.of_int (Client_order_id.Generator.next client_gen)
-      ; symbol = aapl
+      ; symbol_id = aapl
       ; participant = alice
       ; side = Buy
       ; price = Price.of_int_cents (min_price + n)
