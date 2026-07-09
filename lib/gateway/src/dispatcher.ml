@@ -102,11 +102,8 @@ let set_up_session t participant =
     | None -> Async.return ()
     | Some session -> clean_up_session t session
   in
-  Async.return
-    (Hashtbl.add_exn
-       t.participants
-       ~key:id
-       ~data:(Session.create participant))
+  Hashtbl.add_exn t.participants ~key:id ~data:(Session.create participant);
+  Deferred.unit
 ;;
 
 let push_to_session t participant event =
