@@ -3,7 +3,7 @@ open! Core
 module Request = struct
   type t =
     { client_order_id : Client_order_id.t
-    ; symbol : Symbol.t
+    ; symbol_id : Symbol_id.t
     ; participant : Participant.t
     ; side : Side.t
     ; price : Price.t
@@ -14,7 +14,7 @@ module Request = struct
 
   let to_string
     { client_order_id
-    ; symbol
+    ; symbol_id
     ; participant
     ; side
     ; price
@@ -25,7 +25,7 @@ module Request = struct
     let price = Price.to_string_dollar price in
     let size = Size.to_int size in
     [%string
-      "%{client_order_id#Client_order_id} %{side#Side} %{symbol#Symbol} \
+      "%{client_order_id#Client_order_id} %{side#Side} %{symbol_id#Symbol_id} \
        %{size#Int}@%{price} %{time_in_force#Time_in_force} as \
        %{participant#Participant}"]
   ;;
@@ -34,7 +34,7 @@ end
 type t =
   { order_id : Order_id.t
   ; client_order_id : Client_order_id.t
-  ; symbol : Symbol.t
+  ; symbol_id : Symbol_id.t
   ; participant : Participant.t
   ; side : Side.t
   ; price : Price.t
@@ -47,7 +47,7 @@ type t =
 let to_string
   ({ client_order_id
    ; order_id
-   ; symbol = _
+   ; symbol_id = _
    ; participant
    ; side = _
    ; price
@@ -72,7 +72,7 @@ let create (req : Request.t) ~order_id =
       [%message "Order.create: size must be positive" (req.size : Size.t)];
   { client_order_id = req.client_order_id
   ; order_id
-  ; symbol = req.symbol
+  ; symbol_id = req.symbol_id
   ; participant = req.participant
   ; side = req.side
   ; price = req.price
@@ -84,7 +84,7 @@ let create (req : Request.t) ~order_id =
 
 let client_order_id t = t.client_order_id
 let order_id t = t.order_id
-let symbol t = t.symbol
+let symbol_id t = t.symbol_id
 let participant t = t.participant
 let side t = t.side
 let price t = t.price

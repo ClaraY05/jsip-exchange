@@ -10,7 +10,7 @@ type t =
       { client_order_id : Client_order_id.t
       ; order_id : Order_id.t
       ; participant : Participant.t
-      ; symbol : Symbol.t
+      ; symbol_id : Symbol_id.t
       ; remaining_size : Size.t
       ; reason : Cancel_reason.t
       }
@@ -19,11 +19,11 @@ type t =
       ; reason : string
       }
   | Best_bid_offer_update of
-      { symbol : Symbol.t
+      { symbol_id : Symbol_id.t
       ; bbo : Bbo.t
       }
   | Trade_report of
-      { symbol : Symbol.t
+      { symbol_id : Symbol_id.t
       ; price : Price.t
       ; size : Size.t
       }
@@ -41,10 +41,10 @@ let is_market_data = function
     false
 ;;
 
-let symbol_of_market_data = function
-  | Best_bid_offer_update { symbol; bbo = _ }
-  | Trade_report { symbol; price = _; size = _ } ->
-    Some symbol
+let symbol_id_of_market_data = function
+  | Best_bid_offer_update { symbol_id; bbo = _ }
+  | Trade_report { symbol_id; price = _; size = _ } ->
+    Some symbol_id
   | Order_accept _ | Fill _ | Order_cancel _ | Order_reject _
   | Cancel_reject _ ->
     None

@@ -3,7 +3,7 @@ open Jsip_types
 open Expect_test_helpers_core
 
 let make_request
-  ?(symbol = "AAPL")
+  ?(symbol_id = 0)
   ?(participant = "Alice")
   ?(side = Side.Buy)
   ?(price_cents = 15000)
@@ -13,7 +13,7 @@ let make_request
   : Order.Request.t
   =
   { client_order_id = Client_order_id.of_int 0
-  ; symbol = Symbol.of_string symbol
+  ; symbol_id = Symbol_id.of_int symbol_id
   ; participant = Participant.of_string participant
   ; side
   ; price = Price.of_int_cents price_cents
@@ -23,7 +23,7 @@ let make_request
 ;;
 
 let make_order
-  ?symbol
+  ?symbol_id
   ?participant
   ?side
   ?price_cents
@@ -34,7 +34,7 @@ let make_order
   let gen = Order_id.Generator.create () in
   Order.create
     (make_request
-       ?symbol
+       ?symbol_id
        ?participant
        ?side
        ?price_cents
