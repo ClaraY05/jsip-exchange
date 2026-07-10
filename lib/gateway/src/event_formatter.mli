@@ -26,8 +26,34 @@
 open! Core
 open Jsip_types
 
+(** How to render a symbol id for display. The wire carries only
+    {!Symbol_id.t}; pass [Symbol_id.to_string] to show the raw id (server logs,
+    tests) or a {!Symbol_directory}-backed lookup to show the name (client,
+    monitor). Every formatter below takes one so name recovery stays a consumer
+    concern and [lib/types] stays int-only. *)
+type render_symbol = Symbol_id.t -> string
+
 (** Format an exchange event as a single line of human-readable text. *)
-val format_event : Exchange_event.t -> string
+val format_event : render_symbol:render_symbol -> Exchange_event.t -> string
 
 (** Format a list of events, one per line. *)
-val format_events : Exchange_event.t list -> string
+val format_events
+  :  render_symbol:render_symbol
+  -> Exchange_event.t list
+  -> string
+
+(** Format a single fill (the body of a [Fill] event). *)
+val format_fill : render_symbol:render_symbol -> Fill.t -> string
+
+(** Format a book snapshot — the client's [BOOK] response. Mirrors
+    {!Book.to_string} but renders the symbol via [render_symbol]. *)
+val format_book : render_symbol:render_symbol -> Book.t -> string
+
+(** A fill from one participant's perspective ("You bought 100 AAPL at …"), or
+    [None] if the participant was not party to the fill. The name-recovering
+    analogue of {!Fill.to_participant_view}. *)
+val format_participant_fill
+  :  render_symbol:render_symbol
+  -> Fill.t
+  -> Participant.t
+  -> string option

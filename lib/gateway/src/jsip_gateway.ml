@@ -4,6 +4,7 @@ module Metrics_collector = Metrics_collector
 module Rpc_protocol = Rpc_protocol
 module Session = Session
 module Participant_registry = Participant_registry
+module Symbol_directory = Symbol_directory
 module Dispatcher = Dispatcher
 module Exchange_command = Exchange_command
 module Exchange_server = Exchange_server

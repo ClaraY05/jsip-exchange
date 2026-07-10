@@ -16,7 +16,8 @@ open Bonsai_term
     drain starts when the Bonsai graph activates and ends when [events] is
     closed. *)
 val app
-  :  events:Exchange_event.t Pipe.Reader.t
+  :  render_symbol:Jsip_gateway.Event_formatter.render_symbol
+  -> events:Exchange_event.t Pipe.Reader.t
   -> exit:(unit -> unit Effect.t)
   -> dimensions:Dimensions.t Bonsai.t
   -> local_ Bonsai.graph
@@ -28,9 +29,11 @@ module For_testing : sig
       mode indicator, and the help footer inside a single border box.
 
       [?stuck_to_bottom] (default [true]) controls the auto-scroll indicator
-      and the footer hint about the [a] toggle. *)
+      and the footer hint about the [a] toggle. [render_symbol] resolves the
+      symbol ids shown in the BBO panel. *)
   val render_display
     :  ?stuck_to_bottom:bool
+    -> render_symbol:Jsip_gateway.Event_formatter.render_symbol
     -> Controller.Display.t
     -> View.t
 end

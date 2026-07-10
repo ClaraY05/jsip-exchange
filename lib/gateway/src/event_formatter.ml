@@ -1,18 +1,60 @@
 open! Core
 open Jsip_types
 
-let format_event = function
+(* [render_symbol] turns the wire's [Symbol_id.t] into display text. The types
+   in [lib/types] can only print the raw id; name recovery is a consumer
+   concern, so the caller supplies the renderer — [Symbol_id.to_string] to show
+   ids (server-side logs, tests), or a {!Symbol_directory}-backed lookup to show
+   names (client, monitor). That is why the fill and book rendering is
+   reproduced here rather than delegated to [Fill.to_string]/[Book.to_string]:
+   those stay int-only. *)
+
+type render_symbol = Symbol_id.t -> string
+
+let format_fill
+  ~render_symbol
+  ({ fill_id
+   ; symbol_id
+   ; price
+   ; size
+   ; aggressor_order_id
+   ; aggressor_client_order_id
+   ; aggressor_participant
+   ; aggressor_side
+   ; resting_order_id
+   ; resting_client_order_id
+   ; resting_participant
+   } :
+    Fill.t)
+  =
+  sprintf
+    "fill_id=%d %s %s x%d aggressor=%s (client-id=%d) (%s) %s resting=%s \
+     (client-id=%d) (%s)"
+    fill_id
+    (render_symbol symbol_id)
+    (Price.to_string_dollar price)
+    (Size.to_int size)
+    (Order_id.to_string aggressor_order_id)
+    (Client_order_id.to_int aggressor_client_order_id)
+    (Participant.to_string aggressor_participant)
+    (Side.to_string aggressor_side)
+    (Order_id.to_string resting_order_id)
+    (Client_order_id.to_int resting_client_order_id)
+    (Participant.to_string resting_participant)
+;;
+
+let format_event ~render_symbol = function
   | Exchange_event.Order_accept { order_id; request } ->
     sprintf
       "ACCEPTED client-id=%s id=%s %s %s %d@%s %s"
       (Client_order_id.to_string request.client_order_id)
       (Order_id.to_string order_id)
-      (Symbol_id.to_string request.symbol_id)
+      (render_symbol request.symbol_id)
       (Side.to_string request.side)
       (Size.to_int request.size)
       (Price.to_string_dollar request.price)
       (Time_in_force.to_string request.time_in_force)
-  | Fill fill -> [%string "FILL %{fill#Fill}"]
+  | Fill fill -> [%string "FILL %{format_fill ~render_symbol fill}"]
   | Order_cancel
       { client_order_id
       ; order_id
@@ -25,14 +67,14 @@ let format_event = function
       "CANCELLED client_id=%s id=%s %s remaining=%d reason=%s"
       (Client_order_id.to_string client_order_id)
       (Order_id.to_string order_id)
-      (Symbol_id.to_string symbol_id)
+      (render_symbol symbol_id)
       (Size.to_int remaining_size)
       (Cancel_reason.to_string reason)
   | Order_reject { request; reason } ->
     sprintf
       "REJECTED client-id=%s %s %s %d@%s reason=%s"
       (Client_order_id.to_string request.client_order_id)
-      (Symbol_id.to_string request.symbol_id)
+      (render_symbol request.symbol_id)
       (Side.to_string request.side)
       (Size.to_int request.size)
       (Price.to_string_dollar request.price)
@@ -40,10 +82,10 @@ let format_event = function
   | Best_bid_offer_update { symbol_id; bbo } ->
     let bid = Level.opt_to_string bbo.bid in
     let ask = Level.opt_to_string bbo.ask in
-    [%string "BBO %{symbol_id#Symbol_id} bid=%{bid} ask=%{ask}"]
+    [%string "BBO %{render_symbol symbol_id} bid=%{bid} ask=%{ask}"]
   | Trade_report { symbol_id; price; size } ->
     let size = Size.to_int size in
-    [%string "TRADE %{symbol_id#Symbol_id} %{price#Price} x%{size#Int}"]
+    [%string "TRADE %{render_symbol symbol_id} %{price#Price} x%{size#Int}"]
   | Cancel_reject { participant; client_order_id; reason } ->
     sprintf
       "REJECTED Cancel Request client-id:%s (%s) reason=%s"
@@ -52,6 +94,50 @@ let format_event = function
       reason
 ;;
 
-let format_events events =
-  List.map events ~f:format_event |> String.concat ~sep:"\n"
+let format_events ~render_symbol events =
+  List.map events ~f:(format_event ~render_symbol) |> String.concat ~sep:"\n"
+;;
+
+let format_book ~render_symbol ({ symbol_id; bids; asks; bbo } : Book.t) =
+  let format_side label levels =
+    match levels with
+    | [] -> [%string "  %{label}: (empty)"]
+    | _ ->
+      let lines =
+        List.map levels ~f:(fun level -> [%string "    %{level#Level}"])
+        |> String.concat ~sep:"\n"
+      in
+      [%string "  %{label}:\n%{lines}"]
+  in
+  String.concat
+    ~sep:"\n"
+    [ [%string "=== %{render_symbol symbol_id} ==="]
+    ; format_side "BIDS" bids
+    ; format_side "ASKS" asks
+    ; [%string "  BBO: %{bbo#Bbo}"]
+    ]
+;;
+
+let format_participant_fill ~render_symbol (fill : Fill.t) participant
+  : string option
+  =
+  (* TODO(human): render this fill from [participant]'s own perspective — the
+     personalized line the client prints for its user, e.g.
+     "You bought 100 AAPL at $150.00".
+
+     - Return [None] if [participant] is neither party to the fill (compare
+       against [fill.aggressor_participant] and [fill.resting_participant]).
+     - Otherwise decide whether THIS participant bought or sold: if they are the
+       aggressor their side is [fill.aggressor_side]; if they are the resting
+       party it is the opposite side.
+     - Build the message with [render_symbol fill.symbol_id] for the name (so it
+       reads "AAPL", not the raw id), plus [Size.to_int fill.size] and
+       [Price.to_string_dollar fill.price]. Return [Some message].
+
+     Compare {!Fill.to_participant_view} in [lib/types]: same shape, but it can
+     only print the id. Recovering the name here is the Phase 2 render job. *)
+  ignore (render_symbol : render_symbol);
+  ignore (fill : Fill.t);
+  ignore (participant : Participant.t);
+  failwith "TODO: implement Event_formatter.format_participant_fill"
 ;;

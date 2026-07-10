@@ -74,5 +74,11 @@ val should_exit : t -> bool
     [k], arrow keys) to a scroller or treat them as buffer input. *)
 val is_editing_substring : t -> bool
 
-(** Render the current state as [Display.t]. *)
-val display : t -> Display.t
+(** Render the current state as [Display.t]. [render_symbol] resolves symbol
+    ids for the rendered event lines and any active substring filter; the
+    [bbo_panel] stays keyed by [Symbol_id.t] and is resolved at the term_app
+    render site. *)
+val display
+  :  render_symbol:Jsip_gateway.Event_formatter.render_symbol
+  -> t
+  -> Display.t

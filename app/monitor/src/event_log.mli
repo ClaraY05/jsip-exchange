@@ -64,8 +64,13 @@ module Filter : sig
   (** [combine a b] returns a filter that requires both [a] and [b]. *)
   val combine : t -> t -> t
 
-  (** Whether the filter would keep [event]. *)
-  val matches : t -> Exchange_event.t -> bool
+  (** Whether the filter would keep [event]. [render_symbol] is threaded to
+      the substring predicate, which matches against the rendered line. *)
+  val matches
+    :  render_symbol:Jsip_gateway.Event_formatter.render_symbol
+    -> t
+    -> Exchange_event.t
+    -> bool
 end
 
 type t
@@ -93,12 +98,22 @@ val set_filter : t -> Filter.t -> t
 (** The currently-active filter. *)
 val filter : t -> Filter.t
 
-(** Visible events in insertion order (oldest first). *)
-val visible_events : t -> Exchange_event.t list
+(** Visible events in insertion order (oldest first). [render_symbol] resolves
+    symbol ids for any substring filter that inspects the rendered line. *)
+val visible_events
+  :  render_symbol:Jsip_gateway.Event_formatter.render_symbol
+  -> t
+  -> Exchange_event.t list
 
-(** Visible events rendered as text via [Format.format_event]. *)
-val visible_lines : t -> string list
+(** Visible events rendered as text via [Event_formatter.format_event]. *)
+val visible_lines
+  :  render_symbol:Jsip_gateway.Event_formatter.render_symbol
+  -> t
+  -> string list
 
 (** Visible events rendered as [(Color.t, line)] pairs, ready for a styled
     UI. *)
-val visible_styled_lines : t -> (Color.t * string) list
+val visible_styled_lines
+  :  render_symbol:Jsip_gateway.Event_formatter.render_symbol
+  -> t
+  -> (Color.t * string) list

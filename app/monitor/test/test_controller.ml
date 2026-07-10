@@ -31,7 +31,9 @@ let render_to_string view =
 let show c =
   print_endline
     (render_to_string
-       (Term_app.For_testing.render_display (Controller.display c)))
+       (Term_app.For_testing.render_display
+          ~render_symbol:Jsip_types.Symbol_id.to_string
+          (Controller.display ~render_symbol:Jsip_types.Symbol_id.to_string c)))
 ;;
 
 (* ---------- Initial state ---------- *)

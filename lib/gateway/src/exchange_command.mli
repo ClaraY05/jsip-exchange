@@ -22,7 +22,13 @@ type verb =
 
 (** [{Command}] *)
 
-(** Parse a text command into an order request. Returns [Error] with a
-    human-readable message if the input is malformed. Can set
-    default_participant for clients that already know their identity *)
-val parse : ?default_participant:Participant.t -> string -> t Or_error.t
+(** Parse a text command into an order request. A human types the symbol as a
+    {b name} (e.g. [BOOK AAPL]); [directory] resolves it to the
+    {!Symbol_id.t} the wire carries. Returns [Error] with a human-readable
+    message if the input is malformed. Can set [default_participant] for
+    clients that already know their identity. *)
+val parse
+  :  ?default_participant:Participant.t
+  -> directory:Symbol_directory.t
+  -> string
+  -> t Or_error.t

@@ -40,10 +40,19 @@ let subscribe_audit_log ~connection ~host ~port =
 
 let main ~host ~port () =
   let%bind connection = connect_to_exchange ~host ~port in
+  let%bind directory_pairs =
+    Rpc.Rpc.dispatch_exn Rpc_protocol.symbol_directory_rpc connection ()
+  in
+  let directory = Symbol_directory.of_pairs_exn directory_pairs in
+  let render_symbol id =
+    match Symbol_directory.name directory id with
+    | Some name -> Jsip_types.Symbol.to_string name
+    | None -> Jsip_types.Symbol_id.to_string id
+  in
   let%bind events = subscribe_audit_log ~connection ~host ~port in
   let%map result =
     Bonsai_term.start_with_exit (fun ~exit ~dimensions graph ->
-      Term_app.app ~events ~exit ~dimensions graph)
+      Term_app.app ~render_symbol ~events ~exit ~dimensions graph)
   in
   ok_exn result
 ;;

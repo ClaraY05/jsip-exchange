@@ -19,6 +19,16 @@ let run_client ~host ~port ~participant_name =
   (** login to server and dispatch session feed*)
   let%bind login = Rpc.Rpc.dispatch_exn Rpc_protocol.login_rpc conn participant_name in
   let participant = Or_error.ok_exn login in
+  (* Fetch the symbol directory once at connect and mirror it local*)
+  let%bind directory_pairs =
+    Rpc.Rpc.dispatch_exn Rpc_protocol.symbol_directory_rpc conn ()
+  in
+  let directory = Symbol_directory.of_pairs_exn directory_pairs in
+  let render_symbol id =
+    match Symbol_directory.name directory id with
+    | Some name -> Symbol.to_string name
+    | None -> Symbol_id.to_string id
+  in
   print_endline [%string
       {|
   Connected to exchange at %{host}:%{port#Int} as %{participant#Participant}
@@ -35,10 +45,13 @@ let run_client ~host ~port ~participant_name =
   don't_wait_for
   (Pipe.iter_without_pushback session_feed ~f:(fun event ->
      match event with 
-    | Fill fill -> (match (Fill.to_participant_view fill participant) with 
-      | Some msg -> print_endline msg
-      | None -> ())
-    | _ -> print_endline (Event_formatter.format_event event)));
+    | Fill fill ->
+      (match
+         Event_formatter.format_participant_fill ~render_symbol fill participant
+       with
+       | Some msg -> print_endline msg
+       | None -> ())
+    | _ -> print_endline (Event_formatter.format_event ~render_symbol event)));
   let rec loop () = 
     print_string "> ";
     match%bind Reader.read_line (Lazy.force Reader.stdin) with
@@ -51,7 +64,7 @@ let run_client ~host ~port ~participant_name =
       then loop ()
       else (
         match
-          Exchange_command.parse line ~default_participant:participant
+          Exchange_command.parse line ~default_participant:participant ~directory
         with
         | Error msg ->
           print_endline [%string "ERROR: %{Error.to_string_hum msg}"];
@@ -71,8 +84,9 @@ let run_client ~host ~port ~participant_name =
           (match result with
            | None ->
              print_endline
-               [%string "No book available for %{symbol_id#Symbol_id}"]
-           | Some result -> print_endline (Book.to_string result));
+               [%string "No book available for %{render_symbol symbol_id}"]
+           | Some result ->
+             print_endline (Event_formatter.format_book ~render_symbol result));
           loop ()
         | Ok (Exchange_command.Subscribe symbol_id) ->
           let%bind result =
@@ -90,14 +104,16 @@ let run_client ~host ~port ~participant_name =
              print_endline
                [%string
                  {|
-Subscribed to %{symbol_id#Symbol_id} market data. Updates will appear below.
+Subscribed to %{render_symbol symbol_id} market data. Updates will appear below.
 Continue entering commands as normal.|}];
              (* Read market data in the background; the command loop
                 continues running concurrently. *)
              don't_wait_for
                (Pipe.iter_without_pushback reader ~f:(fun event ->
                   print_endline
-                    [%string "[MD] %{Event_formatter.format_event event}"]));
+                    [%string
+                      "[MD] %{Event_formatter.format_event ~render_symbol \
+                       event}"]));
              loop ()))
   in
   loop ()

@@ -19,7 +19,20 @@ type verb =
 `default_participant` overrides this with the caller-supplied default. *)
 let system_default_participant = "anonymous"
 
-let parse ?default_participant:participant line =
+let resolve_symbol ~directory symbol_str =
+  let open Result.Let_syntax in
+  let%bind name =
+    match Or_error.try_with (fun () -> Symbol.of_string symbol_str) with
+    | Ok name -> Ok name
+    | Error _ ->
+      Or_error.error_string [%string "unknown symbol: %{symbol_str}"]
+  in
+  match Symbol_directory.id_of_name directory name with
+  | Some symbol_id -> Ok symbol_id
+  | None -> Or_error.error_string [%string "unknown symbol: %{symbol_str}"]
+;;
+
+let parse ?default_participant:participant ~directory line =
   let line_stripped = String.strip line |> String.filter ~f:(fun c -> not (Char.equal c '\n')) in
   if String.is_empty line_stripped
   then Or_error.error_string "empty command"
@@ -69,15 +82,7 @@ let parse ?default_participant:participant line =
                     Or_error.error_string
                       [%string "invalid price: %{price_str}\nexception: %{exn_str}"]
                 in
-                let%bind symbol_id =
-                  match Int.of_string_opt symbol_str with
-                  | Some n -> Ok (Symbol_id.of_int n)
-                  | None ->
-                    Or_error.error_string
-                      [%string
-                        "invalid symbol id: %{symbol_str} (expected an \
-                         integer)"]
-                in
+                let%bind symbol_id = resolve_symbol ~directory symbol_str in
                 let%bind time_in_force, rest =
                   match rest with
                   | tif_str :: rest' ->(
@@ -114,27 +119,20 @@ let parse ?default_participant:participant line =
                     ; time_in_force
                     }: Order.Request.t))
             | _ -> Or_error.error_string
-                [%string "expected: BUY|SELL <client_id> <symbol_id> <size> <price> [ %{Time_in_force.all_str}] [as <name>]"]
+                [%string "expected: BUY|SELL <client_id> <symbol> <size> <price> [ %{Time_in_force.all_str}] [as <name>]"]
             )
           
         | Book | Subscribe ->(
           match remaining_arguments with
           | symbol_str::_ ->
-              let%bind symbol_id =
-                match Int.of_string_opt symbol_str with
-                | Some n -> Ok (Symbol_id.of_int n)
-                | None ->
-                  Or_error.error_string
-                    [%string
-                      "invalid symbol id: %{symbol_str} (expected an integer)"]
-              in
+              let%bind symbol_id = resolve_symbol ~directory symbol_str in
               (match command with
                 | Book -> Ok (Book symbol_id : t)
                 | Subscribe -> Ok (Subscribe symbol_id)
                 | _ -> Or_error.error_string "UNEXPECTED ERROR: should be caught by earlier errors")
           | [] ->
               Or_error.error_string
-                "expected: BOOK|SUBSCRIBE <symbol_id>"
+                "expected: BOOK|SUBSCRIBE <symbol>"
         )
         | Cancel -> (
           match remaining_arguments with 

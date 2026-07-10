@@ -112,15 +112,15 @@ let scroll_indicator_view ~stuck_to_bottom =
 
 let bbo_value_attr = Attr.fg Attr.Color.Expert.lightcyan
 
-let render_bbo_row (symbol_id, bbo) =
+let render_bbo_row ~render_symbol (symbol_id, bbo) =
   let bbo_str = Bbo.to_string bbo in
   View.hcat
-    [ View.text ~attrs:[ title_attr ] [%string "%{symbol_id#Symbol_id}: "]
+    [ View.text ~attrs:[ title_attr ] [%string "%{render_symbol symbol_id}: "]
     ; View.text ~attrs:[ bbo_value_attr ] bbo_str
     ]
 ;;
 
-let render_bbo_panel (bbos : (Symbol_id.t * Bbo.t) list) =
+let render_bbo_panel ~render_symbol (bbos : (Symbol_id.t * Bbo.t) list) =
   let label =
     View.text ~attrs:[ dim_grey ] (String.pad_right "BBO:" ~len:12)
   in
@@ -128,14 +128,15 @@ let render_bbo_panel (bbos : (Symbol_id.t * Bbo.t) list) =
     if List.is_empty bbos
     then View.text ~attrs:[ dim_grey ] "(no quotes yet)"
     else (
-      let rows = List.map bbos ~f:render_bbo_row in
+      let rows = List.map bbos ~f:(render_bbo_row ~render_symbol) in
       let sep = View.text "  " in
       List.intersperse rows ~sep |> View.hcat)
   in
   View.hcat [ label; body ]
 ;;
 
-let render_top_chrome ~stuck_to_bottom (display : Controller.Display.t)
+let render_top_chrome ~render_symbol ~stuck_to_bottom
+  (display : Controller.Display.t)
   : View.t
   =
   let header =
@@ -158,7 +159,7 @@ let render_top_chrome ~stuck_to_bottom (display : Controller.Display.t)
   in
   View.vcat
     ([ header
-     ; render_bbo_panel display.bbo_panel
+     ; render_bbo_panel ~render_symbol display.bbo_panel
      ; render_chips_row "Categories:" display.category_chips
      ; render_substring_row display.substring_field
      ]
@@ -187,11 +188,12 @@ let render_bottom_chrome (display : Controller.Display.t) : View.t =
   View.vcat [ separator (); footer ]
 ;;
 
-let render_display ?(stuck_to_bottom = true) (display : Controller.Display.t)
+let render_display ?(stuck_to_bottom = true) ~render_symbol
+  (display : Controller.Display.t)
   : View.t
   =
   View.vcat
-    [ render_top_chrome ~stuck_to_bottom display
+    [ render_top_chrome ~render_symbol ~stuck_to_bottom display
     ; render_event_list display
     ; render_bottom_chrome display
     ]
@@ -289,7 +291,7 @@ let drain_events_on_activate events inject =
            (inject (Action.Feed_event event)))))
 ;;
 
-let app ~events ~exit ~dimensions (local_ graph) =
+let app ~render_symbol ~events ~exit ~dimensions (local_ graph) =
   let controller, inject =
     Bonsai.state_machine
       ~default_model:(Controller.create ())
@@ -308,7 +310,9 @@ let app ~events ~exit ~dimensions (local_ graph) =
       (let%map.Bonsai inject in
        drain_events_on_activate events inject)
     graph;
-  let display = Bonsai.map controller ~f:Controller.display in
+  let display =
+    Bonsai.map controller ~f:(Controller.display ~render_symbol)
+  in
   let event_list = Bonsai.map display ~f:render_event_list in
   let bottom_chrome = Bonsai.map display ~f:render_bottom_chrome in
   (* We need a provisional scroller-dims to instantiate the scroller, which
@@ -318,7 +322,9 @@ let app ~events ~exit ~dimensions (local_ graph) =
      placeholder [true] for the dims computation and pass the real value into
      the final [render_top_chrome] below. *)
   let top_chrome_for_dims =
-    Bonsai.map display ~f:(render_top_chrome ~stuck_to_bottom:true)
+    Bonsai.map
+      display
+      ~f:(render_top_chrome ~render_symbol ~stuck_to_bottom:true)
   in
   let scroller_dims =
     let%map.Bonsai (dims : Dimensions.t) = dimensions
@@ -338,7 +344,10 @@ let app ~events ~exit ~dimensions (local_ graph) =
   in
   let top_chrome =
     let%map.Bonsai display and scroller in
-    render_top_chrome ~stuck_to_bottom:scroller.stuck_to_bottom display
+    render_top_chrome
+      ~render_symbol
+      ~stuck_to_bottom:scroller.stuck_to_bottom
+      display
   in
   let view =
     let%map.Bonsai top = top_chrome

@@ -82,8 +82,8 @@ module Filter = struct
     | Substring s -> String.Caseless.is_substring line ~substring:s
   ;;
 
-  let matches t event =
-    let line = Event_formatter.format_event event in
+  let matches ~render_symbol t event =
+    let line = Event_formatter.format_event ~render_symbol event in
     List.for_all t ~f:(predicate_matches event line)
   ;;
 end
@@ -123,15 +123,17 @@ let current_bbos t = List.rev t.bbos_rev
 let set_filter t filter = { t with filter }
 let filter t = t.filter
 
-let visible_events t =
-  List.rev_filter t.events_rev ~f:(Filter.matches t.filter)
+let visible_events ~render_symbol t =
+  List.rev_filter t.events_rev ~f:(Filter.matches ~render_symbol t.filter)
 ;;
 
-let visible_lines t =
-  List.map (visible_events t) ~f:Event_formatter.format_event
+let visible_lines ~render_symbol t =
+  List.map
+    (visible_events ~render_symbol t)
+    ~f:(Event_formatter.format_event ~render_symbol)
 ;;
 
-let visible_styled_lines t =
-  List.map (visible_events t) ~f:(fun event ->
-    Color.of_event event, Event_formatter.format_event event)
+let visible_styled_lines ~render_symbol t =
+  List.map (visible_events ~render_symbol t) ~f:(fun event ->
+    Color.of_event event, Event_formatter.format_event ~render_symbol event)
 ;;
