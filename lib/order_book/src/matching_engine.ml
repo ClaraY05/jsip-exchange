@@ -21,7 +21,7 @@ module Symbol_registry = struct
 
   let book t (symbol_id : Symbol_id.t) : Order_book.t option =
     let symbol_id_int = Symbol_id.to_int symbol_id in
-    match symbol_id_int < 0 || symbol_id_int > Array.length t.books with
+    match symbol_id_int < 0 || symbol_id_int >= Array.length t.books with
     | true -> None
     | false -> Some t.books.(symbol_id_int)
   ;;
