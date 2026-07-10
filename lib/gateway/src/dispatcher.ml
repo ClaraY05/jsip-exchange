@@ -8,7 +8,7 @@ type t =
       Exchange_event.t Pipe.Writer.t Bag.t Symbol_id.Table.t
   ; audit_subscribers : Exchange_event.t Pipe.Writer.t Bag.t
   ; metrics_subscribers : Metrics.t Pipe.Writer.t Bag.t
-  ; mutable participants : Session.t Participant_id.Table.t
+  ; participants : Session.t Participant_id.Table.t
   ; registry : Participant_registry.t
   }
 
