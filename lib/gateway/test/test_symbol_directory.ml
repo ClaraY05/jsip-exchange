@@ -13,7 +13,9 @@ let goog = Symbol.of_string "GOOG"
 let directory = Symbol_directory.of_names_exn [ aapl; tsla; goog ]
 
 let%expect_test "of_names_exn assigns dense ids from zero" =
-  print_s [%sexp (Symbol_directory.to_pairs directory : (Symbol.t * Symbol_id.t) list)];
+  print_s
+    [%sexp
+      (Symbol_directory.to_pairs directory : (Symbol.t * Symbol_id.t) list)];
   [%expect {| ((AAPL 0) (TSLA 1) (GOOG 2)) |}]
 ;;
 
@@ -35,10 +37,19 @@ let%expect_test "name resolves a known id, None for out-of-range" =
   [%expect {| ((known (GOOG)) (out_of_range ())) |}]
 ;;
 
-let%expect_test "of_pairs_exn round-trips a directory rebuilt from the wire form" =
+let%expect_test "of_pairs_exn round-trips a directory rebuilt from the wire \
+                 form"
+  =
   (* Shuffle the pairs to prove [of_pairs_exn] does not assume input order. *)
-  let scrambled = [ goog, Symbol_id.of_int 2; aapl, Symbol_id.of_int 0; tsla, Symbol_id.of_int 1 ] in
+  let scrambled =
+    [ goog, Symbol_id.of_int 2
+    ; aapl, Symbol_id.of_int 0
+    ; tsla, Symbol_id.of_int 1
+    ]
+  in
   let rebuilt = Symbol_directory.of_pairs_exn scrambled in
-  print_s [%sexp (Symbol_directory.to_pairs rebuilt : (Symbol.t * Symbol_id.t) list)];
+  print_s
+    [%sexp
+      (Symbol_directory.to_pairs rebuilt : (Symbol.t * Symbol_id.t) list)];
   [%expect {| ((AAPL 0) (TSLA 1) (GOOG 2)) |}]
 ;;

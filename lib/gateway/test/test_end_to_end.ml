@@ -54,8 +54,7 @@ let%expect_test "e2e: three clients, sequential orders, shared book" =
            ~participant:Harness.bob
            ())
     in
-    [%expect
-      {| [for Bob] ACCEPTED client-id=0 id=1 0 SELL 50@$150.00 DAY |}];
+    [%expect {| [for Bob] ACCEPTED client-id=0 id=1 0 SELL 50@$150.00 DAY |}];
     (* Charlie posts a sell at a higher price *)
     let%bind () =
       rpc_submit
@@ -117,7 +116,8 @@ let%expect_test "e2e: market data subscriber receives trade and BBO updates" =
     don't_wait_for
       (Pipe.iter_without_pushback reader ~f:(fun event ->
          let e =
-           Event_formatter.format_event event
+           Event_formatter.format_event
+             event
              ~render_symbol:Symbol_id.to_string
          in
          print_endline [%string "[MD Subscriber] %{e}"]));
@@ -146,56 +146,59 @@ let%expect_test "e2e: market data subscriber receives trade and BBO updates" =
 ;;
 
 let%expect_test "e2e: subscriber only sees events for subscribed symbol" =
-  with_server ~symbol_names:[ Harness.aapl_name; Harness.tsla_name ] (fun ~server:_ ~port ->
-    let%bind sub = connect_as ~port (Participant.of_string "Sub") in
-    let%bind bob = connect_as ~port Harness.bob in
-    let%bind result =
-      Rpc.Pipe_rpc.dispatch
-        Rpc_protocol.market_data_rpc
-        (connection sub)
-        [ Harness.aapl ]
-    in
-    let reader =
-      match result with
-      | Ok (Ok (reader, _id)) -> reader
-      | _ -> failwith "subscribe failed"
-    in
-    don't_wait_for
-      (Pipe.iter_without_pushback reader ~f:(fun event ->
-         let e =
-           Event_formatter.format_event event
-             ~render_symbol:Symbol_id.to_string
-         in
-         print_endline [%string "[MD Subscriber] %{e}"]));
-    (* Post on TSLA — subscriber should NOT see this *)
-    let%bind () =
-      rpc_submit
-        bob
-        (Harness.sell
-           ~price_cents:20000
-           ~client_id:(Client_order_id.of_int 0)
-           ~symbol_id:Harness.tsla
-           ~participant:Harness.bob
-           ())
-    in
-    [%expect
-      {| [for Bob] ACCEPTED client-id=0 id=1 1 SELL 100@$200.00 DAY |}];
-    (* Post on AAPL — subscriber SHOULD see this *)
-    let%bind () =
-      rpc_submit
-        bob
-        (Harness.sell
-           ~price_cents:15000
-           ~client_id:(Client_order_id.of_int 1)
-           ~participant:Harness.bob
-           ())
-    in
-    [%expect
-      {|
+  with_server
+    ~symbol_names:[ Harness.aapl_name; Harness.tsla_name ]
+    (fun ~server:_ ~port ->
+       let%bind sub = connect_as ~port (Participant.of_string "Sub") in
+       let%bind bob = connect_as ~port Harness.bob in
+       let%bind result =
+         Rpc.Pipe_rpc.dispatch
+           Rpc_protocol.market_data_rpc
+           (connection sub)
+           [ Harness.aapl ]
+       in
+       let reader =
+         match result with
+         | Ok (Ok (reader, _id)) -> reader
+         | _ -> failwith "subscribe failed"
+       in
+       don't_wait_for
+         (Pipe.iter_without_pushback reader ~f:(fun event ->
+            let e =
+              Event_formatter.format_event
+                event
+                ~render_symbol:Symbol_id.to_string
+            in
+            print_endline [%string "[MD Subscriber] %{e}"]));
+       (* Post on TSLA — subscriber should NOT see this *)
+       let%bind () =
+         rpc_submit
+           bob
+           (Harness.sell
+              ~price_cents:20000
+              ~client_id:(Client_order_id.of_int 0)
+              ~symbol_id:Harness.tsla
+              ~participant:Harness.bob
+              ())
+       in
+       [%expect
+         {| [for Bob] ACCEPTED client-id=0 id=1 1 SELL 100@$200.00 DAY |}];
+       (* Post on AAPL — subscriber SHOULD see this *)
+       let%bind () =
+         rpc_submit
+           bob
+           (Harness.sell
+              ~price_cents:15000
+              ~client_id:(Client_order_id.of_int 1)
+              ~participant:Harness.bob
+              ())
+       in
+       [%expect
+         {|
       [for Bob] ACCEPTED client-id=1 id=2 0 SELL 100@$150.00 DAY
       [MD Subscriber] BBO 0 bid=- ask=$150.00 x100
       |}];
-    return ())
+       return ())
 ;;
 
 (* ---------------------------------------------------------------- *)
@@ -258,63 +261,67 @@ let%expect_test "e2e: many clients submit orders concurrently" =
 let%expect_test "e2e: audit log subscriber sees full unfiltered stream \
                  across symbols"
   =
-  with_server ~symbol_names:[ Harness.aapl_name; Harness.tsla_name ] (fun ~server:_ ~port ->
-    let%bind sub = connect_as ~port (Participant.of_string "Auditor") in
-    let%bind alice = connect_as ~port Harness.alice in
-    let%bind bob = connect_as ~port Harness.bob in
-    let%bind result =
-      Rpc.Pipe_rpc.dispatch Rpc_protocol.audit_log_rpc (connection sub) ()
-    in
-    let reader =
-      match result with
-      | Ok (Ok (reader, _id)) -> reader
-      | _ -> failwith "subscribe failed"
-    in
-    don't_wait_for
-      (Pipe.iter_without_pushback reader ~f:(fun event ->
-         let e =
-           Event_formatter.format_event event
-             ~render_symbol:Symbol_id.to_string
-         in
-         print_endline [%string "[AUDIT] %{e}"]));
-    (* Post a sell on AAPL — audit subscriber should see ACCEPTED and BBO. *)
-    let%bind () =
-      rpc_submit
-        bob
-        (Harness.sell
-           ~price_cents:15000
-           ~client_id:(Client_order_id.of_int 0)
-           ~participant:Harness.bob
-           ())
-    in
-    [%expect
-      {|
+  with_server
+    ~symbol_names:[ Harness.aapl_name; Harness.tsla_name ]
+    (fun ~server:_ ~port ->
+       let%bind sub = connect_as ~port (Participant.of_string "Auditor") in
+       let%bind alice = connect_as ~port Harness.alice in
+       let%bind bob = connect_as ~port Harness.bob in
+       let%bind result =
+         Rpc.Pipe_rpc.dispatch Rpc_protocol.audit_log_rpc (connection sub) ()
+       in
+       let reader =
+         match result with
+         | Ok (Ok (reader, _id)) -> reader
+         | _ -> failwith "subscribe failed"
+       in
+       don't_wait_for
+         (Pipe.iter_without_pushback reader ~f:(fun event ->
+            let e =
+              Event_formatter.format_event
+                event
+                ~render_symbol:Symbol_id.to_string
+            in
+            print_endline [%string "[AUDIT] %{e}"]));
+       (* Post a sell on AAPL — audit subscriber should see ACCEPTED and BBO. *)
+       let%bind () =
+         rpc_submit
+           bob
+           (Harness.sell
+              ~price_cents:15000
+              ~client_id:(Client_order_id.of_int 0)
+              ~participant:Harness.bob
+              ())
+       in
+       [%expect
+         {|
       [AUDIT] ACCEPTED client-id=0 id=1 0 SELL 100@$150.00 DAY
       [AUDIT] BBO 0 bid=- ask=$150.00 x100
       [for Bob] ACCEPTED client-id=0 id=1 0 SELL 100@$150.00 DAY
       |}];
-    (* Post a sell on TSLA — audit subscriber should see this too
-       (multi-symbol). *)
-    let%bind () =
-      rpc_submit
-        bob
-        (Harness.sell
-           ~price_cents:20000
-           ~symbol_id:Harness.tsla
-           ~client_id:(Client_order_id.of_int 1)
-           ~participant:Harness.bob
-           ())
-    in
-    [%expect
-      {|
+       (* Post a sell on TSLA — audit subscriber should see this too
+          (multi-symbol). *)
+       let%bind () =
+         rpc_submit
+           bob
+           (Harness.sell
+              ~price_cents:20000
+              ~symbol_id:Harness.tsla
+              ~client_id:(Client_order_id.of_int 1)
+              ~participant:Harness.bob
+              ())
+       in
+       [%expect
+         {|
       [AUDIT] ACCEPTED client-id=1 id=2 1 SELL 100@$200.00 DAY
       [AUDIT] BBO 1 bid=- ask=$200.00 x100
       [for Bob] ACCEPTED client-id=1 id=2 1 SELL 100@$200.00 DAY
       |}];
-    (* Cross the AAPL sell — the audit log should see ACCEPTED + FILL + BBO. *)
-    let%bind () = rpc_submit alice (Harness.buy ~price_cents:15000 ()) in
-    [%expect
-      {|
+       (* Cross the AAPL sell — the audit log should see ACCEPTED + FILL +
+          BBO. *)
+       let%bind () = rpc_submit alice (Harness.buy ~price_cents:15000 ()) in
+       [%expect
+         {|
       [AUDIT] ACCEPTED client-id=0 id=3 0 BUY 100@$150.00 DAY
       [AUDIT] FILL fill_id=1 0 $150.00 x100 aggressor=3 (client-id=0) (Alice) BUY resting=1 (client-id=0) (Bob)
       [AUDIT] TRADE 0 $150.00 x100
@@ -323,7 +330,7 @@ let%expect_test "e2e: audit log subscriber sees full unfiltered stream \
       [for Alice] FILL fill_id=1 0 $150.00 x100 aggressor=3 (client-id=0) (Alice) BUY resting=1 (client-id=0) (Bob)
       [for Bob] FILL fill_id=1 0 $150.00 x100 aggressor=3 (client-id=0) (Alice) BUY resting=1 (client-id=0) (Bob)
       |}];
-    return ())
+       return ())
 ;;
 
 let%expect_test "dispatcher: closing a subscriber's reader removes the \
@@ -459,8 +466,7 @@ let%expect_test "e2e: BBO update after cancel" =
            ~participant:Harness.bob
            ())
     in
-    [%expect
-      {| [for Bob] ACCEPTED client-id=0 id=1 0 SELL 50@$150.00 DAY |}];
+    [%expect {| [for Bob] ACCEPTED client-id=0 id=1 0 SELL 50@$150.00 DAY |}];
     (* Charlie posts a sell at a higher price *)
     let%bind () =
       rpc_submit

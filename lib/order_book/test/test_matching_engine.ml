@@ -232,11 +232,11 @@ let%expect_test "book: returns book for known symbol, None for unknown" =
 ;;
 
 let%expect_test "book: rejects out-of-range ids at the boundary" =
-  (* The harness trades 3 symbols (ids 0..2), so the books array has length 3.
-     Id 3 is exactly one past the end — the case an off-by-one bounds check
-     ([> length] instead of [>= length]) would let through and crash on. A
-     negative id is the other edge. Both must resolve to [None], since the
-     engine cannot trust an id a client sends. *)
+  (* The harness trades 3 symbols (ids 0..2), so the books array has
+     length 3. Id 3 is exactly one past the end — the case an off-by-one
+     bounds check ([> length] instead of [>= length]) would let through and
+     crash on. A negative id is the other edge. Both must resolve to [None],
+     since the engine cannot trust an id a client sends. *)
   let t = Harness.create () in
   let engine = Harness.engine t in
   let one_past_end = Symbol_id.of_int 3 in
@@ -244,7 +244,9 @@ let%expect_test "book: rejects out-of-range ids at the boundary" =
   [%test_result: _ option]
     (Matching_engine.book engine one_past_end)
     ~expect:None;
-  [%test_result: _ option] (Matching_engine.book engine negative) ~expect:None
+  [%test_result: _ option]
+    (Matching_engine.book engine negative)
+    ~expect:None
 ;;
 
 (* ================================================================ *)

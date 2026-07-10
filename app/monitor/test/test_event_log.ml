@@ -25,7 +25,8 @@ let log_with_sample_events () =
 let%expect_test "fresh log has no events and no visible output" =
   let log = Event_log.create () in
   print_endline [%string "count=%{Event_log.event_count log#Int}"];
-  print_lines (Event_log.visible_lines ~render_symbol:Symbol_id.to_string log);
+  print_lines
+    (Event_log.visible_lines ~render_symbol:Symbol_id.to_string log);
   [%expect {| count=0 |}]
 ;;
 
@@ -34,7 +35,8 @@ let%expect_test "fresh log has no events and no visible output" =
 let%expect_test "events appear in insertion order" =
   let log = log_with_sample_events () in
   print_endline [%string "count=%{Event_log.event_count log#Int}"];
-  print_lines (Event_log.visible_lines ~render_symbol:Symbol_id.to_string log);
+  print_lines
+    (Event_log.visible_lines ~render_symbol:Symbol_id.to_string log);
   [%expect
     {|
     count=6
@@ -54,7 +56,8 @@ let%expect_test "filter by substring keeps only matching lines" =
   let log =
     Event_log.set_filter log (Event_log.Filter.by_substring "fill")
   in
-  print_lines (Event_log.visible_lines ~render_symbol:Symbol_id.to_string log);
+  print_lines
+    (Event_log.visible_lines ~render_symbol:Symbol_id.to_string log);
   [%expect
     {| FILL fill_id=1 0 $150.00 x100 aggressor=2 (client-id=0) (Alice) BUY resting=1 (client-id=0) (Bob) |}]
 ;;
@@ -62,7 +65,8 @@ let%expect_test "filter by substring keeps only matching lines" =
 let%expect_test "substring filter is case-insensitive" =
   let log = log_with_sample_events () in
   let log = Event_log.set_filter log (Event_log.Filter.by_substring "bbo") in
-  print_lines (Event_log.visible_lines ~render_symbol:Symbol_id.to_string log);
+  print_lines
+    (Event_log.visible_lines ~render_symbol:Symbol_id.to_string log);
   [%expect {| BBO 0 bid=$149.90 x100 ask=$150.10 x200 |}]
 ;;
 
@@ -75,7 +79,8 @@ let%expect_test "filter by category groups variants" =
       log
       (Event_log.Filter.by_categories [ Order_lifecycle ])
   in
-  print_lines (Event_log.visible_lines ~render_symbol:Symbol_id.to_string log);
+  print_lines
+    (Event_log.visible_lines ~render_symbol:Symbol_id.to_string log);
   [%expect
     {|
     ACCEPTED client-id=0 id=1 0 BUY 100@$150.00 DAY
@@ -89,7 +94,8 @@ let%expect_test "market-data category covers BBO and trade reports" =
   let log =
     Event_log.set_filter log (Event_log.Filter.by_categories [ Market_data ])
   in
-  print_lines (Event_log.visible_lines ~render_symbol:Symbol_id.to_string log);
+  print_lines
+    (Event_log.visible_lines ~render_symbol:Symbol_id.to_string log);
   [%expect
     {|
     BBO 0 bid=$149.90 x100 ask=$150.10 x200
@@ -107,7 +113,8 @@ let%expect_test "combined filters intersect" =
       (Event_log.Filter.by_substring "150.00")
   in
   let log = Event_log.set_filter log f in
-  print_lines (Event_log.visible_lines ~render_symbol:Symbol_id.to_string log);
+  print_lines
+    (Event_log.visible_lines ~render_symbol:Symbol_id.to_string log);
   [%expect {| TRADE 0 $150.00 x100 |}]
 ;;
 
@@ -115,7 +122,8 @@ let%expect_test "combined filters intersect" =
 
 let%expect_test "each event variant renders with its assigned color" =
   let log = log_with_sample_events () in
-  print_styled (Event_log.visible_styled_lines ~render_symbol:Symbol_id.to_string log);
+  print_styled
+    (Event_log.visible_styled_lines ~render_symbol:Symbol_id.to_string log);
   [%expect
     {|
     [green] ACCEPTED client-id=0 id=1 0 BUY 100@$150.00 DAY

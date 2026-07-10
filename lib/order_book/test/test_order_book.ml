@@ -287,8 +287,8 @@ let%expect_test "snapshot lists levels in price-time priority order" =
     |}]
 ;;
 
-let%expect_test "snapshot aggregates orders from multiple participants at one \
-                 price level"
+let%expect_test "snapshot aggregates orders from multiple participants at \
+                 one price level"
   =
   let book = Order_book.create Harness.aapl in
   let alice_size = 40 in
@@ -327,14 +327,28 @@ let%expect_test "snapshot aggregates orders from multiple participants at one \
        ());
   Order_book.add
     book
-    (make_order
-       ~side:Sell
-       ~price_cents:15001
-       ~order_id:4
-       ~size:next_size
-       ());
-  (* TODO(human): assert the snapshot aggregates the three $150.00 sells into
-     a single level whose size is [alice_size + bob_size + charlie_size], with
-     the $150.01 order as a separate level. *)
-  ()
+    (make_order ~side:Sell ~price_cents:15001 ~order_id:4 ~size:next_size ());
+  let snapshot : Book.t = Order_book.snapshot book in
+  (* The three $150.00 sells collapse into one level; the $150.01 order stays
+     separate, so aggregation stops at the price boundary. *)
+  print_endline (Book.to_string snapshot);
+  [%expect
+    {|
+    === 0 ===
+      BIDS: (empty)
+      ASKS:
+        $150.00 x125
+        $150.01 x100
+      BBO: - / $150.00 x125
+    |}];
+  (* Pin the aggregated size to the exact sum of the three resting orders,
+     not just "some aggregation happened". *)
+  match snapshot.asks with
+  | [ aggregated; next ] ->
+    [%test_result: int]
+      (Size.to_int aggregated.size)
+      ~expect:(alice_size + bob_size + charlie_size);
+    [%test_result: int] (Size.to_int next.size) ~expect:next_size
+  | other ->
+    raise_s [%message "expected exactly two ask levels" (other : Level.t list)]
 ;;

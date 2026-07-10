@@ -54,7 +54,15 @@ let make_request
   }
 ;;
 
-let buy ~price_cents ?size ?client_id ?symbol_id ?participant ?time_in_force () =
+let buy
+  ~price_cents
+  ?size
+  ?client_id
+  ?symbol_id
+  ?participant
+  ?time_in_force
+  ()
+  =
   make_request
     ~side:Buy
     ~price_cents
@@ -66,7 +74,14 @@ let buy ~price_cents ?size ?client_id ?symbol_id ?participant ?time_in_force () 
     ()
 ;;
 
-let sell ~price_cents ?size ?client_id ?symbol_id ?participant ?time_in_force ()
+let sell
+  ~price_cents
+  ?size
+  ?client_id
+  ?symbol_id
+  ?participant
+  ?time_in_force
+  ()
   =
   make_request
     ~side:Sell
@@ -94,7 +109,9 @@ let print_events ?(show = Show.all) events =
     if show event
     then
       print_endline
-        (Event_formatter.format_event event ~render_symbol:Symbol_id.to_string))
+        (Event_formatter.format_event
+           event
+           ~render_symbol:Symbol_id.to_string))
 ;;
 
 let print_event event =
@@ -179,7 +196,8 @@ let print_book t symbol_id =
 
 let print_bbo t symbol_id =
   match Matching_engine.book t.engine symbol_id with
-  | None -> print_endline [%string "BBO %{symbol_id#Symbol_id}: unknown symbol"]
+  | None ->
+    print_endline [%string "BBO %{symbol_id#Symbol_id}: unknown symbol"]
   | Some book ->
     let bbo = Order_book.best_bid_offer book |> Bbo.to_string in
     print_endline [%string "BBO %{symbol_id#Symbol_id}: %{bbo}"]

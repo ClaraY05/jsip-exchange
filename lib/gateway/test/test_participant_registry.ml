@@ -32,7 +32,8 @@ let%expect_test "intern is additive: the same name returns the same id" =
 let%expect_test "name recovers the participant an id was interned from" =
   let registry = Participant_registry.create () in
   let alice_id = Participant_registry.intern registry alice in
-  print_s [%sexp (Participant_registry.name registry alice_id : Participant.t)];
+  print_s
+    [%sexp (Participant_registry.name registry alice_id : Participant.t)];
   [%expect {| Alice |}]
 ;;
 

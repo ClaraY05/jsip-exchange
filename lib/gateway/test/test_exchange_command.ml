@@ -186,7 +186,9 @@ let%expect_test "round-trip: parse a command, submit, format result" =
     (Harness.sell ~price_cents:15000 ~participant:Harness.bob ());
   (* Parse a buy command from text and submit it *)
   let _ =
-    match Exchange_command.parse "BUY AAPL 100 150.00 as Alice" ~directory with
+    match
+      Exchange_command.parse "BUY AAPL 100 150.00 as Alice" ~directory
+    with
     | Error msg ->
       print_endline [%string "ERROR: %{Error.to_string_hum msg}"]
     | Ok (Exchange_command.Submit request) ->
