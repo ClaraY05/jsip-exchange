@@ -1,13 +1,13 @@
 open! Core
 open Jsip_types
 
-(* [render_symbol] turns the wire's [Symbol_id.t] into display text. The types
-   in [lib/types] can only print the raw id; name recovery is a consumer
-   concern, so the caller supplies the renderer — [Symbol_id.to_string] to show
-   ids (server-side logs, tests), or a {!Symbol_directory}-backed lookup to show
-   names (client, monitor). That is why the fill and book rendering is
-   reproduced here rather than delegated to [Fill.to_string]/[Book.to_string]:
-   those stay int-only. *)
+(* [render_symbol] turns the wire's [Symbol_id.t] into display text. The
+   types in [lib/types] can only print the raw id; name recovery is a
+   consumer concern, so the caller supplies the renderer —
+   [Symbol_id.to_string] to show ids (server-side logs, tests), or a
+   {!Symbol_directory}-backed lookup to show names (client, monitor). That is
+   why the fill and book rendering is reproduced here rather than delegated
+   to [Fill.to_string]/[Book.to_string]: those stay int-only. *)
 
 type render_symbol = Symbol_id.t -> string
 
@@ -119,25 +119,19 @@ let format_book ~render_symbol ({ symbol_id; bids; asks; bbo } : Book.t) =
 ;;
 
 let format_participant_fill ~render_symbol (fill : Fill.t) participant
-  : string option
+  : string
   =
-  (* TODO(human): render this fill from [participant]'s own perspective — the
-     personalized line the client prints for its user, e.g.
-     "You bought 100 AAPL at $150.00".
-
-     - Return [None] if [participant] is neither party to the fill (compare
-       against [fill.aggressor_participant] and [fill.resting_participant]).
-     - Otherwise decide whether THIS participant bought or sold: if they are the
-       aggressor their side is [fill.aggressor_side]; if they are the resting
-       party it is the opposite side.
-     - Build the message with [render_symbol fill.symbol_id] for the name (so it
-       reads "AAPL", not the raw id), plus [Size.to_int fill.size] and
-       [Price.to_string_dollar fill.price]. Return [Some message].
-
-     Compare {!Fill.to_participant_view} in [lib/types]: same shape, but it can
-     only print the id. Recovering the name here is the Phase 2 render job. *)
-  ignore (render_symbol : render_symbol);
-  ignore (fill : Fill.t);
-  ignore (participant : Participant.t);
-  failwith "TODO: implement Event_formatter.format_participant_fill"
+  match
+    Fill.to_participant_view
+      fill
+      participant
+      (render_symbol fill.symbol_id)
+  with
+  | None ->
+    raise_s
+      [%message
+        "fill routed to non party"
+          (participant : Participant.t)
+          (fill : Fill.t)]
+  | Some message -> message
 ;;

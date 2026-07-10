@@ -48,7 +48,7 @@ let to_string
 
 let notional_cents t = Price.to_int_cents t.price * Size.to_int t.size
 
-let to_participant_view t participant =
+let to_participant_view t participant symbol_string =
   if Participant.( <> ) t.aggressor_participant participant
      && Participant.( <> ) t.resting_participant participant
   then None
@@ -67,13 +67,13 @@ let to_participant_view t participant =
         (sprintf
            "You bought %d %s at %s"
            (Size.to_int t.size)
-           (Symbol_id.to_string t.symbol_id)
+           symbol_string
            (Price.to_string_dollar t.price))
     | Sell ->
       Some
         (sprintf
            "You sold %d %s at %s"
            (Size.to_int t.size)
-           (Symbol_id.to_string t.symbol_id)
+           symbol_string
            (Price.to_string_dollar t.price)))
 ;;

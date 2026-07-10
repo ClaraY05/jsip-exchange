@@ -49,11 +49,13 @@ val format_fill : render_symbol:render_symbol -> Fill.t -> string
     {!Book.to_string} but renders the symbol via [render_symbol]. *)
 val format_book : render_symbol:render_symbol -> Book.t -> string
 
-(** A fill from one participant's perspective ("You bought 100 AAPL at …"), or
-    [None] if the participant was not party to the fill. The name-recovering
-    analogue of {!Fill.to_participant_view}. *)
+(** A fill from one participant's perspective ("You bought 100 AAPL at …").
+    The name-recovering analogue of {!Fill.to_participant_view}, but returns a
+    plain [string]: the dispatcher only delivers a fill to its two parties, so
+    [participant] is always one of them. Passing a non-party is a precondition
+    violation and raises. *)
 val format_participant_fill
   :  render_symbol:render_symbol
   -> Fill.t
   -> Participant.t
-  -> string option
+  -> string

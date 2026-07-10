@@ -46,11 +46,8 @@ let run_client ~host ~port ~participant_name =
   (Pipe.iter_without_pushback session_feed ~f:(fun event ->
      match event with 
     | Fill fill ->
-      (match
-         Event_formatter.format_participant_fill ~render_symbol fill participant
-       with
-       | Some msg -> print_endline msg
-       | None -> ())
+      print_endline
+        (Event_formatter.format_participant_fill ~render_symbol fill participant)
     | _ -> print_endline (Event_formatter.format_event ~render_symbol event)));
   let rec loop () = 
     print_string "> ";

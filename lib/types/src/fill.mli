@@ -34,4 +34,4 @@ val notional_cents : t -> int
     not involve a given participant it returns `None`
 
     Does not expose the inputted client_order_id. *)
-val to_participant_view : t -> Participant.t -> string option
+val to_participant_view : t -> Participant.t -> String.t -> string option
