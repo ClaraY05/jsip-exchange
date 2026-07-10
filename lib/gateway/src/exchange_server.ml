@@ -112,7 +112,16 @@ let start_matching_loop ~engine ~dispatcher ~collector request_reader =
 
 let default_metrics_interval = Time_ns.Span.of_sec 1.
 
-let start ?(metrics_interval = default_metrics_interval) ~symbols ~port () =
+let start
+  ?(metrics_interval = default_metrics_interval)
+  ~symbol_names
+  ~port
+  ()
+  =
+  let directory = Symbol_directory.of_names_exn symbol_names in
+  let symbols =
+    List.mapi symbol_names ~f:(fun i _name -> Symbol_id.of_int i)
+  in
   let engine = Matching_engine.create symbols in
   let dispatcher = Dispatcher.create () in
   let collector = Metrics_collector.create () in
@@ -164,6 +173,11 @@ let start ?(metrics_interval = default_metrics_interval) ~symbols ~port () =
                  handle_write
                    ~request_writer
                    (Order { request with participant }))
+        ; Rpc.Rpc.implement'
+            Rpc_protocol.symbol_directory_rpc
+            (fun state () ->
+               ignore state;
+               Symbol_directory.to_pairs directory)
         ; Rpc.Rpc.implement' Rpc_protocol.book_query_rpc (fun state symbol ->
             ignore state;
             Matching_engine.book engine symbol

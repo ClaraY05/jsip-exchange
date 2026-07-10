@@ -10,9 +10,11 @@ open Jsip_types
 
 type t
 
-(** Start a server on the given port with the given symbols. Returns the
-    server handle and the port it is actually listening on (useful when you
-    pass port 0 to get an OS-assigned port).
+(** Start a server on the given port trading [symbol_names]. The [i]th name is
+    assigned id [i]; the server runs on those ids internally and serves the
+    [(name, id)] directory over {!Rpc_protocol.symbol_directory_rpc} so clients
+    can recover names. Returns the server handle and the port it is actually
+    listening on (useful when you pass port 0 to get an OS-assigned port).
 
     [metrics_interval] controls how often the [metrics_feed_rpc] snapshot is
     sampled and broadcast; it defaults to one second. Tests pass a small
@@ -20,7 +22,7 @@ type t
     second. *)
 val start
   :  ?metrics_interval:Time_ns.Span.t
-  -> symbols:Symbol_id.t list
+  -> symbol_names:Symbol.t list
   -> port:int
   -> unit
   -> t Deferred.t
