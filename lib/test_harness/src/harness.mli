@@ -26,6 +26,15 @@ open Jsip_order_book
 val aapl : Symbol_id.t
 val tsla : Symbol_id.t
 val goog : Symbol_id.t
+
+(** The human names for [aapl]/[tsla]/[goog], in id order. Pass
+    [default_symbol_names] (or a prefix) to {!E2e_helpers.with_server} so the
+    server assigns the same ids these constants stand for. *)
+val aapl_name : Symbol.t
+
+val tsla_name : Symbol.t
+val goog_name : Symbol.t
+val default_symbol_names : Symbol.t list
 val alice : Participant.t
 val bob : Participant.t
 val charlie : Participant.t

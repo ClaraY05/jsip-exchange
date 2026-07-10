@@ -12,7 +12,7 @@ open Jsip_gateway
     rather than once a real second. *)
 val with_server
   :  ?metrics_interval:Time_ns.Span.t
-  -> symbols:Symbol_id.t list
+  -> symbol_names:Symbol.t list
   -> (server:Exchange_server.t -> port:int -> 'a Deferred.t)
   -> 'a Deferred.t
 

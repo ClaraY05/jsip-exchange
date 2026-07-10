@@ -3,9 +3,9 @@ open! Async
 open Jsip_gateway
 open Jsip_types
 
-let with_server ?metrics_interval ~symbols f =
+let with_server ?metrics_interval ~symbol_names f =
   let%bind server =
-    Exchange_server.start ?metrics_interval ~symbols ~port:0 ()
+    Exchange_server.start ?metrics_interval ~symbol_names ~port:0 ()
   in
   let port = Exchange_server.port server in
   Monitor.protect
@@ -31,7 +31,9 @@ let connect_as ~port _participant =
   in
   don't_wait_for
     (Pipe.iter_without_pushback session_feed ~f:(fun event ->
-       let e = Event_formatter.format_event event in
+       let e =
+         Event_formatter.format_event event ~render_symbol:Symbol_id.to_string
+       in
        print_endline [%string "[for %{_participant#Participant}] %{e}"]));
   Async.return { conn }
 ;;
@@ -46,7 +48,9 @@ let connect_as_no_login ~port _participant =
   in
   don't_wait_for
     (Pipe.iter_without_pushback session_feed ~f:(fun event ->
-       let e = Event_formatter.format_event event in
+       let e =
+         Event_formatter.format_event event ~render_symbol:Symbol_id.to_string
+       in
        print_endline [%string "[for %{_participant#Participant}] %{e}"]));
   Async.return { conn }
 ;;

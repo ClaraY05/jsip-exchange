@@ -8,6 +8,14 @@ open Jsip_gateway
 let aapl = Symbol_id.of_int 0
 let tsla = Symbol_id.of_int 1
 let goog = Symbol_id.of_int 2
+
+(* The human names paired with the ids above, in id order. The server assigns
+   ids by a name's position in its symbol list, so a server started with
+   [default_symbol_names] reproduces exactly [aapl]/[tsla]/[goog]. *)
+let aapl_name = Symbol.of_string "AAPL"
+let tsla_name = Symbol.of_string "TSLA"
+let goog_name = Symbol.of_string "GOOG"
+let default_symbol_names = [ aapl_name; tsla_name; goog_name ]
 let alice = Participant.of_string "Alice"
 let bob = Participant.of_string "Bob"
 let charlie = Participant.of_string "Charlie"
@@ -83,10 +91,16 @@ end
 
 let print_events ?(show = Show.all) events =
   List.iter events ~f:(fun event ->
-    if show event then print_endline (Event_formatter.format_event event))
+    if show event
+    then
+      print_endline
+        (Event_formatter.format_event event ~render_symbol:Symbol_id.to_string))
 ;;
 
-let print_event event = print_endline (Event_formatter.format_event event)
+let print_event event =
+  print_endline
+    (Event_formatter.format_event event ~render_symbol:Symbol_id.to_string)
+;;
 
 let submit t request =
   let events = Matching_engine.submit t.engine request in

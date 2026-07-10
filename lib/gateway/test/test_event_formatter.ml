@@ -80,7 +80,8 @@ let%expect_test "format_event: all event types" =
     ]
   in
   List.iter events ~f:(fun e ->
-    print_endline (Event_formatter.format_event e));
+    print_endline
+      (Event_formatter.format_event e ~render_symbol:Symbol_id.to_string));
   [%expect
     {|
     ACCEPTED client-id=0 id=1 0 BUY 100@$150.00 DAY

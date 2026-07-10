@@ -38,8 +38,8 @@ let%expect_test "to_participant_view: participant is aggressor" =
      : Fill.t)
   in
   [%test_result: string option]
-    (Fill.to_participant_view fill participant)
-    ~expect:(Some "You bought 250 0 at $150.00");
+    (Fill.to_participant_view fill participant "AAPL")
+    ~expect:(Some "You bought 250 AAPL at $150.00");
   let fill' =
     ({ fill_id = 1
      ; symbol_id = Symbol_id.of_int 0
@@ -56,8 +56,8 @@ let%expect_test "to_participant_view: participant is aggressor" =
      : Fill.t)
   in
   [%test_result: string option]
-    (Fill.to_participant_view fill' participant)
-    ~expect:(Some "You sold 250 0 at $150.00")
+    (Fill.to_participant_view fill' participant "AAPL")
+    ~expect:(Some "You sold 250 AAPL at $150.00")
 ;;
 
 let%expect_test "to_participant_view: participant is resting" =
@@ -78,8 +78,8 @@ let%expect_test "to_participant_view: participant is resting" =
      : Fill.t)
   in
   [%test_result: string option]
-    (Fill.to_participant_view fill participant)
-    ~expect:(Some "You sold 250 0 at $150.00");
+    (Fill.to_participant_view fill participant "AAPL")
+    ~expect:(Some "You sold 250 AAPL at $150.00");
   let fill' =
     ({ fill_id = 1
      ; symbol_id = Symbol_id.of_int 0
@@ -96,8 +96,8 @@ let%expect_test "to_participant_view: participant is resting" =
      : Fill.t)
   in
   [%test_result: string option]
-    (Fill.to_participant_view fill' participant)
-    ~expect:(Some "You bought 250 0 at $150.00")
+    (Fill.to_participant_view fill' participant "AAPL")
+    ~expect:(Some "You bought 250 AAPL at $150.00")
 ;;
 
 let%expect_test "to_participant_view: participant not in Fill" =
@@ -118,6 +118,6 @@ let%expect_test "to_participant_view: participant not in Fill" =
      : Fill.t)
   in
   [%test_result: string option]
-    (Fill.to_participant_view fill participant)
+    (Fill.to_participant_view fill participant "AAPL")
     ~expect:None
 ;;

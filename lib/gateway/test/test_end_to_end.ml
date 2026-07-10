@@ -17,7 +17,7 @@ open E2e_helpers
 (* ---------------------------------------------------------------- *)
 
 let%expect_test "e2e: two clients trade with each other" =
-  with_server ~symbols:[ Harness.aapl ] (fun ~server:_ ~port ->
+  with_server ~symbol_names:[ Harness.aapl_name ] (fun ~server:_ ~port ->
     let%bind alice = connect_as ~port Harness.alice in
     let%bind bob = connect_as ~port Harness.bob in
     (* Bob places a sell *)
@@ -40,7 +40,7 @@ let%expect_test "e2e: two clients trade with each other" =
 ;;
 
 let%expect_test "e2e: three clients, sequential orders, shared book" =
-  with_server ~symbols:[ Harness.aapl ] (fun ~server:_ ~port ->
+  with_server ~symbol_names:[ Harness.aapl_name ] (fun ~server:_ ~port ->
     let%bind alice = connect_as ~port Harness.alice in
     let%bind bob = connect_as ~port Harness.bob in
     let%bind charlie = connect_as ~port Harness.charlie in
@@ -99,7 +99,7 @@ let%expect_test "e2e: three clients, sequential orders, shared book" =
 (* ---------------------------------------------------------------- *)
 
 let%expect_test "e2e: market data subscriber receives trade and BBO updates" =
-  with_server ~symbols:[ Harness.aapl ] (fun ~server:_ ~port ->
+  with_server ~symbol_names:[ Harness.aapl_name ] (fun ~server:_ ~port ->
     let%bind sub = connect_as ~port (Participant.of_string "Sub") in
     let%bind alice = connect_as ~port Harness.alice in
     let%bind bob = connect_as ~port Harness.bob in
@@ -116,7 +116,10 @@ let%expect_test "e2e: market data subscriber receives trade and BBO updates" =
     in
     don't_wait_for
       (Pipe.iter_without_pushback reader ~f:(fun event ->
-         let e = Event_formatter.format_event event in
+         let e =
+           Event_formatter.format_event event
+             ~render_symbol:Symbol_id.to_string
+         in
          print_endline [%string "[MD Subscriber] %{e}"]));
     (* Post a sell *)
     let%bind () =
@@ -143,7 +146,7 @@ let%expect_test "e2e: market data subscriber receives trade and BBO updates" =
 ;;
 
 let%expect_test "e2e: subscriber only sees events for subscribed symbol" =
-  with_server ~symbols:[ Harness.aapl; Harness.tsla ] (fun ~server:_ ~port ->
+  with_server ~symbol_names:[ Harness.aapl_name; Harness.tsla_name ] (fun ~server:_ ~port ->
     let%bind sub = connect_as ~port (Participant.of_string "Sub") in
     let%bind bob = connect_as ~port Harness.bob in
     let%bind result =
@@ -159,7 +162,10 @@ let%expect_test "e2e: subscriber only sees events for subscribed symbol" =
     in
     don't_wait_for
       (Pipe.iter_without_pushback reader ~f:(fun event ->
-         let e = Event_formatter.format_event event in
+         let e =
+           Event_formatter.format_event event
+             ~render_symbol:Symbol_id.to_string
+         in
          print_endline [%string "[MD Subscriber] %{e}"]));
     (* Post on TSLA — subscriber should NOT see this *)
     let%bind () =
@@ -197,7 +203,7 @@ let%expect_test "e2e: subscriber only sees events for subscribed symbol" =
 (* ---------------------------------------------------------------- *)
 
 let%expect_test "e2e: many clients submit orders concurrently" =
-  with_server ~symbols:[ Harness.aapl ] (fun ~server:_ ~port ->
+  with_server ~symbol_names:[ Harness.aapl_name ] (fun ~server:_ ~port ->
     let%bind seed = connect_as ~port Harness.bob in
     let%bind () =
       let client_id_manager = Client_order_id.Generator.create () in
@@ -252,7 +258,7 @@ let%expect_test "e2e: many clients submit orders concurrently" =
 let%expect_test "e2e: audit log subscriber sees full unfiltered stream \
                  across symbols"
   =
-  with_server ~symbols:[ Harness.aapl; Harness.tsla ] (fun ~server:_ ~port ->
+  with_server ~symbol_names:[ Harness.aapl_name; Harness.tsla_name ] (fun ~server:_ ~port ->
     let%bind sub = connect_as ~port (Participant.of_string "Auditor") in
     let%bind alice = connect_as ~port Harness.alice in
     let%bind bob = connect_as ~port Harness.bob in
@@ -266,7 +272,10 @@ let%expect_test "e2e: audit log subscriber sees full unfiltered stream \
     in
     don't_wait_for
       (Pipe.iter_without_pushback reader ~f:(fun event ->
-         let e = Event_formatter.format_event event in
+         let e =
+           Event_formatter.format_event event
+             ~render_symbol:Symbol_id.to_string
+         in
          print_endline [%string "[AUDIT] %{e}"]));
     (* Post a sell on AAPL — audit subscriber should see ACCEPTED and BBO. *)
     let%bind () =
@@ -361,7 +370,7 @@ let%expect_test "dispatcher: closing a subscriber's reader removes the \
 let%expect_test "e2e: client adds a order, cancels it and gains \
                  order_cancel in feed"
   =
-  with_server ~symbols:[ Harness.aapl ] (fun ~server:_ ~port ->
+  with_server ~symbol_names:[ Harness.aapl_name ] (fun ~server:_ ~port ->
     let%bind alice = connect_as ~port Harness.alice in
     (* Alice places a sell *)
     let%bind () =
@@ -379,7 +388,7 @@ let%expect_test "e2e: client adds a order, cancels it and gains \
 ;;
 
 let%expect_test "e2e: duplicate client order IDs are rejected" =
-  with_server ~symbols:[ Harness.aapl ] (fun ~server:_ ~port ->
+  with_server ~symbol_names:[ Harness.aapl_name ] (fun ~server:_ ~port ->
     let%bind alice = connect_as ~port Harness.alice in
     (* Alice places a sell *)
     let%bind () =
@@ -400,7 +409,7 @@ let%expect_test "e2e: duplicate client order IDs are rejected" =
 ;;
 
 let%expect_test "e2e: cancel an already filled order" =
-  with_server ~symbols:[ Harness.aapl ] (fun ~server:_ ~port ->
+  with_server ~symbol_names:[ Harness.aapl_name ] (fun ~server:_ ~port ->
     let%bind alice = connect_as ~port Harness.alice in
     let%bind bob = connect_as ~port Harness.bob in
     (* Bob places a sell *)
@@ -427,7 +436,7 @@ let%expect_test "e2e: cancel an already filled order" =
 ;;
 
 let%expect_test "e2e: cancel a nonexistent order" =
-  with_server ~symbols:[ Harness.aapl ] (fun ~server:_ ~port ->
+  with_server ~symbol_names:[ Harness.aapl_name ] (fun ~server:_ ~port ->
     let%bind alice = connect_as ~port Harness.alice in
     (* Alice cancels order *)
     let%bind () = rpc_cancel alice (Client_order_id.of_int 0) in
@@ -437,7 +446,7 @@ let%expect_test "e2e: cancel a nonexistent order" =
 ;;
 
 let%expect_test "e2e: BBO update after cancel" =
-  with_server ~symbols:[ Harness.aapl ] (fun ~server:_ ~port ->
+  with_server ~symbol_names:[ Harness.aapl_name ] (fun ~server:_ ~port ->
     let%bind bob = connect_as ~port Harness.bob in
     let%bind charlie = connect_as ~port Harness.charlie in
     (* Bob posts a sell *)
@@ -499,7 +508,7 @@ let%expect_test "e2e: BBO update after cancel" =
 (* ---------------------------------------------------------------- *)
 
 let%expect_test "e2e: submit before login is rejected" =
-  with_server ~symbols:[ Harness.aapl ] (fun ~server:_ ~port ->
+  with_server ~symbol_names:[ Harness.aapl_name ] (fun ~server:_ ~port ->
     let%bind conn = connect_raw ~port in
     let%bind result =
       Rpc.Rpc.dispatch_exn
@@ -513,7 +522,7 @@ let%expect_test "e2e: submit before login is rejected" =
 ;;
 
 let%expect_test "e2e: cancel before login is rejected" =
-  with_server ~symbols:[ Harness.aapl ] (fun ~server:_ ~port ->
+  with_server ~symbol_names:[ Harness.aapl_name ] (fun ~server:_ ~port ->
     let%bind conn = connect_raw ~port in
     let%bind result =
       Rpc.Rpc.dispatch_exn
@@ -528,7 +537,7 @@ let%expect_test "e2e: cancel before login is rejected" =
 
 let%expect_test "e2e: logging in with an already-registered name is rejected"
   =
-  with_server ~symbols:[ Harness.aapl ] (fun ~server:_ ~port ->
+  with_server ~symbol_names:[ Harness.aapl_name ] (fun ~server:_ ~port ->
     (* First login for Alice succeeds. *)
     let%bind _alice = connect_as ~port Harness.alice in
     (* A second connection tries to claim the same name. *)
@@ -634,7 +643,7 @@ let%expect_test "metric_collector: metrics feed reports sessions, \
   =
   with_server
     ~metrics_interval:fast_metrics
-    ~symbols:[ Harness.aapl ]
+    ~symbol_names:[ Harness.aapl_name ]
     (fun ~server:_ ~port ->
        (* Alice just logs in (idle); Bob does the trading. Two participants
           means [connected_sessions] should read 2. *)
