@@ -98,8 +98,9 @@ val set_filter : t -> Filter.t -> t
 (** The currently-active filter. *)
 val filter : t -> Filter.t
 
-(** Visible events in insertion order (oldest first). [render_symbol] resolves
-    symbol ids for any substring filter that inspects the rendered line. *)
+(** Visible events in insertion order (oldest first). [render_symbol]
+    resolves symbol ids for any substring filter that inspects the rendered
+    line. *)
 val visible_events
   :  render_symbol:Jsip_gateway.Event_formatter.render_symbol
   -> t

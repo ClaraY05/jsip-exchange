@@ -122,10 +122,7 @@ let format_participant_fill ~render_symbol (fill : Fill.t) participant
   : string
   =
   match
-    Fill.to_participant_view
-      fill
-      participant
-      (render_symbol fill.symbol_id)
+    Fill.to_participant_view fill participant (render_symbol fill.symbol_id)
   with
   | None ->
     raise_s

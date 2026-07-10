@@ -27,10 +27,10 @@ open! Core
 open Jsip_types
 
 (** How to render a symbol id for display. The wire carries only
-    {!Symbol_id.t}; pass [Symbol_id.to_string] to show the raw id (server logs,
-    tests) or a {!Symbol_directory}-backed lookup to show the name (client,
-    monitor). Every formatter below takes one so name recovery stays a consumer
-    concern and [lib/types] stays int-only. *)
+    {!Symbol_id.t}; pass [Symbol_id.to_string] to show the raw id (server
+    logs, tests) or a {!Symbol_directory}-backed lookup to show the name
+    (client, monitor). Every formatter below takes one so name recovery stays
+    a consumer concern and [lib/types] stays int-only. *)
 type render_symbol = Symbol_id.t -> string
 
 (** Format an exchange event as a single line of human-readable text. *)
@@ -50,10 +50,10 @@ val format_fill : render_symbol:render_symbol -> Fill.t -> string
 val format_book : render_symbol:render_symbol -> Book.t -> string
 
 (** A fill from one participant's perspective ("You bought 100 AAPL at …").
-    The name-recovering analogue of {!Fill.to_participant_view}, but returns a
-    plain [string]: the dispatcher only delivers a fill to its two parties, so
-    [participant] is always one of them. Passing a non-party is a precondition
-    violation and raises. *)
+    The name-recovering analogue of {!Fill.to_participant_view}, but returns
+    a plain [string]: the dispatcher only delivers a fill to its two parties,
+    so [participant] is always one of them. Passing a non-party is a
+    precondition violation and raises. *)
 val format_participant_fill
   :  render_symbol:render_symbol
   -> Fill.t

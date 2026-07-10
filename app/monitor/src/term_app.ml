@@ -115,7 +115,9 @@ let bbo_value_attr = Attr.fg Attr.Color.Expert.lightcyan
 let render_bbo_row ~render_symbol (symbol_id, bbo) =
   let bbo_str = Bbo.to_string bbo in
   View.hcat
-    [ View.text ~attrs:[ title_attr ] [%string "%{render_symbol symbol_id}: "]
+    [ View.text
+        ~attrs:[ title_attr ]
+        [%string "%{render_symbol symbol_id}: "]
     ; View.text ~attrs:[ bbo_value_attr ] bbo_str
     ]
 ;;
@@ -135,7 +137,9 @@ let render_bbo_panel ~render_symbol (bbos : (Symbol_id.t * Bbo.t) list) =
   View.hcat [ label; body ]
 ;;
 
-let render_top_chrome ~render_symbol ~stuck_to_bottom
+let render_top_chrome
+  ~render_symbol
+  ~stuck_to_bottom
   (display : Controller.Display.t)
   : View.t
   =
@@ -188,7 +192,9 @@ let render_bottom_chrome (display : Controller.Display.t) : View.t =
   View.vcat [ separator (); footer ]
 ;;
 
-let render_display ?(stuck_to_bottom = true) ~render_symbol
+let render_display
+  ?(stuck_to_bottom = true)
+  ~render_symbol
   (display : Controller.Display.t)
   : View.t
   =

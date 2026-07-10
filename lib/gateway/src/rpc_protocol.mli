@@ -43,14 +43,13 @@ val book_query_rpc : (Symbol_id.t, Book.t option) Rpc.Rpc.t
     unit if no errors. *)
 val cancel_order_rpc : (Client_order_id.t, unit Or_error.t) Rpc.Rpc.t
 
-(** Fetch the symbol directory: the authoritative [(name, id)] pairs the server
-    assigned at startup. The wire carries only {!Symbol_id.t} ints; a client or
-    monitor calls this once at connect and mirrors it locally
-    ({!Symbol_directory}) so it can resolve a human-typed name to an id at parse
-    and an id back to a name at render. The server never renders a symbol
-    itself — it only serves this directory. *)
-val symbol_directory_rpc
-  : (unit, (Symbol.t * Symbol_id.t) list) Rpc.Rpc.t
+(** Fetch the symbol directory: the authoritative [(name, id)] pairs the
+    server assigned at startup. The wire carries only {!Symbol_id.t} ints; a
+    client or monitor calls this once at connect and mirrors it locally
+    ({!Symbol_directory}) so it can resolve a human-typed name to an id at
+    parse and an id back to a name at render. The server never renders a
+    symbol itself — it only serves this directory. *)
+val symbol_directory_rpc : (unit, (Symbol.t * Symbol_id.t) list) Rpc.Rpc.t
 
 (** Subscribe to market data for one or more symbols. The server pushes BBO
     updates and trade reports as they happen via a single pipe. The query is

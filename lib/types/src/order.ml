@@ -25,9 +25,9 @@ module Request = struct
     let price = Price.to_string_dollar price in
     let size = Size.to_int size in
     [%string
-      "%{client_order_id#Client_order_id} %{side#Side} %{symbol_id#Symbol_id} \
-       %{size#Int}@%{price} %{time_in_force#Time_in_force} as \
-       %{participant#Participant}"]
+      "%{client_order_id#Client_order_id} %{side#Side} \
+       %{symbol_id#Symbol_id} %{size#Int}@%{price} \
+       %{time_in_force#Time_in_force} as %{participant#Participant}"]
   ;;
 end
 

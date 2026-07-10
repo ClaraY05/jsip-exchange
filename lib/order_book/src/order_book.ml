@@ -158,19 +158,19 @@ let best_bid_offer t : Bbo.t =
 
 let snapshot_side t (side : Side.t) =
   (* Orders leave the map in price-time priority with equal prices adjacent,
-     so a single pass aggregates them: [List.group] cuts the side into runs of
-     equal price, and each run collapses into one [Level.t] whose size is the
-     sum of remaining sizes. No resort is needed. *)
+     so a single pass aggregates them: [List.group] cuts the side into runs
+     of equal price, and each run collapses into one [Level.t] whose size is
+     the sum of remaining sizes. No resort is needed. *)
   orders_on_side t side
   |> List.group ~break:(fun prev next ->
-       not (Price.( = ) (Order.price prev) (Order.price next)))
+    not (Price.( = ) (Order.price prev) (Order.price next)))
   |> List.map ~f:(fun orders_at_price ->
-       let price = Order.price (List.hd_exn orders_at_price) in
-       let size =
-         List.fold orders_at_price ~init:Size.zero ~f:(fun acc order ->
-           Size.( + ) acc (Order.remaining_size order))
-       in
-       ({ price; size } : Level.t))
+    let price = Order.price (List.hd_exn orders_at_price) in
+    let size =
+      List.fold orders_at_price ~init:Size.zero ~f:(fun acc order ->
+        Size.( + ) acc (Order.remaining_size order))
+    in
+    ({ price; size } : Level.t))
 ;;
 
 let snapshot t =

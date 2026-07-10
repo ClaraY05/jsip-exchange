@@ -89,7 +89,9 @@ type t =
 [@@deriving sexp_of]
 
 let empty =
-  { positions = Participant.Map.empty; reference_prices = Symbol_id.Map.empty }
+  { positions = Participant.Map.empty
+  ; reference_prices = Symbol_id.Map.empty
+  }
 ;;
 
 let find_position t ~participant ~symbol =
