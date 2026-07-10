@@ -107,16 +107,17 @@ let engine_with_n_asks ?(min_price = 10_000) n =
   engine
 ;;
 
-(** Build a matching engine that trades [n] distinct symbols (["SYM0"] ..
-    ["SYM<n-1>"]), each with an empty book. This is the fixture for the
+(** Build a matching engine that trades [n] distinct symbols (ids
+    [0 .. n-1]), each with an empty book. This is the fixture for the
     symbol-lookup benchmark: with no resting orders, the only cost in a
-    [Matching_engine.book] call is resolving the symbol to its book, so the
-    benchmark measures the [Symbol.Map] lookup and nothing else. Returns the
-    engine and the symbol list so a caller can pick one to look up. *)
+    [Matching_engine.book] call is resolving the id to its book, so the
+    benchmark measures that lookup and nothing else. Since Exercise 4 the id
+    is a small int indexing a plain [Order_book.t array], so the lookup is a
+    bounds check plus one array index — no hashing, no [Symbol.Map] tree
+    walk. Returns the engine and the symbol list so a caller can pick one to
+    look up. *)
 let engine_with_n_symbols n =
-  let symbols =
-    List.init n ~f:Symbol_id.of_int
-  in
+  let symbols = List.init n ~f:Symbol_id.of_int in
   Matching_engine.create symbols, symbols
 ;;
 
@@ -220,13 +221,8 @@ let bench_snapshot_distinct ~n =
 (* ---------------------------------------------------------------- *)
 (* Symbol Lookup Time *)
 (* ---------------------------------------------------------------- *)
-(* Time the engine's pure symbol->book lookup ([Matching_engine.book]) over
-   an engine trading [n] symbols. Unlike [submit]/[cancel], [book] does
-   nothing but resolve the symbol to its order book, so this isolates the
-   cost of that resolution — today an O(log n) walk of string comparisons
-   through [Symbol.Map], which is exactly what Exercise 2 sets out to make
-   O(1). We build the engine (the fixture) once, outside the thunk, and time
-   only the lookup inside it. *)
+(* Time the engine's pure id->book lookup ([Matching_engine.book]) over an
+   engine trading [n] symbols. *)
 let bench_lookup ~n =
   let engine, symbols = engine_with_n_symbols n in
   let target = List.random_element_exn symbols in
@@ -368,6 +364,93 @@ let bench_find_match_alloc ~n =
 ;;
 
 (* ---------------------------------------------------------------- *)
+(* Wire payload size *)
+(* ---------------------------------------------------------------- *)
+(* Exercise 4 pushed the symbol onto the wire as a [Symbol_id.t] int instead
+   of a [Symbol.t] string. [bin_size_t] is the exact number of bytes bin-prot
+   writes for a value, so it turns "the wire got smaller" into a number.
+
+   Every message below carries exactly one symbol field, and bin-prot just
+   concatenates fields — so swapping that one field from a string name to an
+   int id shrinks the whole message by exactly the difference between the two
+   encodings, independent of the other fields. That per-symbol delta, times
+   every order and every streamed event, is the bandwidth this exercise buys.
+
+   This is a byte count, not a timing, so it prints a report rather than
+   running under core_bench. *)
+
+let sample_symbol_name = Symbol.of_string "AAPL"
+
+let sample_level : Level.t =
+  { price = Price.of_int_cents 15_000; size = Size.of_int 100 }
+;;
+
+let sample_bbo : Bbo.t = { bid = Some sample_level; ask = Some sample_level }
+
+let sample_request : Order.Request.t =
+  { client_order_id = Client_order_id.of_int 0
+  ; symbol_id = aapl
+  ; participant = alice
+  ; side = Buy
+  ; price = Price.of_int_cents 15_000
+  ; size = Size.of_int 100
+  ; time_in_force = Day
+  }
+;;
+
+let sample_fill : Fill.t =
+  { fill_id = 1
+  ; symbol_id = aapl
+  ; price = Price.of_int_cents 15_000
+  ; size = Size.of_int 100
+  ; aggressor_order_id = Order_id.of_string "1"
+  ; aggressor_client_order_id = Client_order_id.of_int 0
+  ; aggressor_participant = alice
+  ; aggressor_side = Buy
+  ; resting_order_id = Order_id.of_string "2"
+  ; resting_client_order_id = Client_order_id.of_int 0
+  ; resting_participant = bob
+  }
+;;
+
+let sample_book : Book.t =
+  { symbol_id = aapl
+  ; bids = [ sample_level ]
+  ; asks = [ sample_level ]
+  ; bbo = sample_bbo
+  }
+;;
+
+let sample_event : Exchange_event.t = Exchange_event.Fill sample_fill
+
+let print_payload_sizes () =
+  let name_bytes = Symbol.bin_size_t sample_symbol_name in
+  let id_bytes = Symbol_id.bin_size_t aapl in
+  let saved_per_symbol = name_bytes - id_bytes in
+  printf
+    "symbol as name (%s) : %d bytes\n"
+    (Symbol.to_string sample_symbol_name)
+    name_bytes;
+  printf "symbol as id         : %d bytes\n" id_bytes;
+  printf "saved per symbol     : %d bytes\n\n" saved_per_symbol;
+  printf "%-26s %10s %10s %8s\n" "message" "id (now)" "name" "saved";
+  (* Each message holds one symbol field, so the pre-Exercise-4 (string) size
+     is just the current size plus that one field's delta. *)
+  let row name current_bytes =
+    printf
+      "%-26s %10d %10d %8d\n"
+      name
+      current_bytes
+      (current_bytes + saved_per_symbol)
+      saved_per_symbol
+  in
+  row "Order.Request.t" (Order.Request.bin_size_t sample_request);
+  row "Book.t" (Book.bin_size_t sample_book);
+  row "Fill.t" (Fill.bin_size_t sample_fill);
+  row "Exchange_event.t (Fill)" (Exchange_event.bin_size_t sample_event)
+;;
+
+(* ---------------------------------------------------------------- *)
 (* Main *)
 (* ---------------------------------------------------------------- *)
 
@@ -402,5 +485,9 @@ let () =
        [ "existing", Bench.make_command tests
        ; "snapshot", Bench.make_command snapshot_tests
        ; "symbol-lookup", Bench.make_command lookup_tests
+       ; ( "payload-size"
+         , Command.basic
+             ~summary:"Wire payload size per message: int id vs string name"
+             (Command.Param.return print_payload_sizes) )
        ])
 ;;
